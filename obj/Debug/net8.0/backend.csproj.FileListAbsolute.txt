@@ -133,3 +133,4 @@
 /Users/caiuamello/Desktop/PROJETOS/IA/platform/backend/obj/Debug/net8.0/backend.pdb
 /Users/caiuamello/Desktop/PROJETOS/IA/platform/backend/obj/Debug/net8.0/backend.genruntimeconfig.cache
 /Users/caiuamello/Desktop/PROJETOS/IA/platform/backend/obj/Debug/net8.0/ref/backend.dll
+/Users/caiuamello/Desktop/PROJETOS/IA/platform/backend/obj/Debug/net8.0/backend.sourcelink.json

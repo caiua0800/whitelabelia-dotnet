@@ -13,6 +13,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
     
 builder.Services.AddScoped<ClientService>();
+builder.Services.AddScoped<AdminService>();
 
 var app = builder.Build();
 app.MapControllers(); 
