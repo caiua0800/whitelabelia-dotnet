@@ -1,82 +1,123 @@
-// Controllers/ClientController.cs
+// Controllers/AdminController.cs
+using Microsoft.AspNetCore.Mvc;
 using backend.Models;
 using backend.Services;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
-namespace backend.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AdminController : ControllerBase
+namespace backend.Controllers
 {
-    private readonly AdminService _adminService;
-
-    public AdminController(AdminService adminService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AdminController : ControllerBase
     {
-        _adminService = adminService;
-    }
+        private readonly ApplicationDbContext _context;
+        private readonly ITenantService _tenantService;
 
-    [HttpGet]
-    public async Task<ActionResult<List<Admin>>> Get()
-    {
-        return await _adminService.GetAllAdmins();
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Admin>> Get(string id)
-    {
-        var admin = await _adminService.GetAdminById(id);
-        if (admin == null)
+        public AdminController(ApplicationDbContext context, ITenantService tenantService)
         {
-            return NotFound();
-        }
-        return admin;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Admin>> Post(Admin admin)
-    {
-        try
-        {
-            var createdAdmin = await _adminService.CreateAdmin(admin);
-            return CreatedAtAction(nameof(Get), new { email = createdAdmin.Email }, createdAdmin);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
-    [HttpPut("{email}")]
-    public async Task<IActionResult> Put(string email, Admin admin)
-    {
-        if (email != admin.Email)
-        {
-            return BadRequest("ID do admin não corresponde");
+            _context = context;
+            _tenantService = tenantService;
         }
 
-        try
+        // Listar todos os Admins
+        [HttpGet]
+        public async Task<IActionResult> GetAllAdmins()
         {
-            await _adminService.UpdateAdmin(admin);
+            var admins = await _context.Admins.ToListAsync();
+            return Ok(admins);
+        }
+
+        // Buscar Admin por Id
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetAdminById(int id)
+        {
+            var admin = await _context.Admins.FindAsync(id);
+            if (admin == null)
+            {
+                return NotFound();
+            }
+            return Ok(admin);
+        }
+
+        // Criar novo Admin
+        [HttpPost]
+        public async Task<IActionResult> CreateAdmin([FromBody] Admin admin)
+        {
+            // Exemplo: Criptografar a senha ao criar
+            admin.Password = BCrypt.Net.BCrypt.HashPassword(admin.Password);
+
+            _context.Admins.Add(admin);
+            await _context.SaveChangesAsync();
+            return CreatedAtAction(nameof(GetAdminById), new { id = admin.Id }, admin);
+        }
+
+        // Atualizar Admin
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateAdmin(int id, [FromBody] Admin updatedAdmin)
+        {
+            if (id != updatedAdmin.Id)
+            {
+                return BadRequest();
+            }
+
+            var admin = await _context.Admins.FindAsync(id);
+            if (admin == null)
+            {
+                return NotFound();
+            }
+
+            admin.Name = updatedAdmin.Name;
+            admin.LoginId = updatedAdmin.LoginId;
+            admin.Email = updatedAdmin.Email;
+
+            if (!string.IsNullOrEmpty(updatedAdmin.Password))
+            {
+                admin.Password = BCrypt.Net.BCrypt.HashPassword(updatedAdmin.Password);
+            }
+
+            _context.Admins.Update(admin);
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
-        catch (Exception ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
 
-    [HttpDelete("{email}")]
-    public async Task<IActionResult> Delete(string email)
-    {
-        try
+        // Deletar Admin
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAdmin(int id)
         {
-            await _adminService.DeleteAdmin(email);
+            var admin = await _context.Admins.FindAsync(id);
+            if (admin == null)
+            {
+                return NotFound();
+            }
+
+            _context.Admins.Remove(admin);
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
-        catch (Exception ex)
+
+        [HttpGet("by-enterprise")]
+        [Authorize]
+        public async Task<IActionResult> GetAdminsByEnterprise()
         {
-            return BadRequest(ex.Message);
+            var enterprise = HttpContext.Items["CurrentEnterprise"] as Enterprise;
+
+            if (enterprise == null)
+            {
+                return Unauthorized(new { message = "Empresa não encontrada no contexto." });
+            }
+
+            var admins = await _context.Admins
+                .Where(a => a.EnterpriseId == enterprise.Id)
+                .ToListAsync();
+
+            return Ok(admins);
         }
+
     }
 }
