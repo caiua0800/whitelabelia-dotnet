@@ -8,6 +8,7 @@ using backend.Interfaces;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using backend.DTOs;
 
 namespace backend.Models
 {
@@ -32,6 +33,14 @@ namespace backend.Models
         public DbSet<SubscriptionType> SubscriptionTypes { get; set; }
         public DbSet<Address> Addresses { get; set; }
         public DbSet<Agent> Agents { get; set; }
+        public DbSet<AgentPrompt> AgentPrompts { get; set; }
+        public DbSet<Tag> Tags { get; set; }
+        public DbSet<Shot> Shots { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Sale> Sales { get; set; }
+        public DbSet<SaleItem> SaleItems { get; set; }
+        public DbSet<Payment> Payments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,10 +69,35 @@ namespace backend.Models
 
             modelBuilder.Entity<Address>(entity =>
             {
-                entity.ToTable("enterprise_addresses");  // Tabela para o endereço
-                entity.HasKey(a => a.Id);  // Chave primária do endereço
+                entity.ToTable("enterprise_addresses");
+                entity.HasKey(a => a.Id);
                 entity.Property(a => a.Id).HasColumnName("address_id").ValueGeneratedOnAdd(); // Coluna de ID gerada automaticamente
                 entity.Property(a => a.EnterpriseId).HasColumnName("enterprise_id");
+            });
+
+            modelBuilder.Entity<AgentPrompt>(entity =>
+            {
+                entity.ToTable("agent_prompts");
+            });
+
+            modelBuilder.Entity<Product>(entity =>
+            {
+                entity.ToTable("products");
+                entity.Property(p => p.CategoryNames)
+                .HasColumnType("text[]")
+                .HasConversion(
+                    v => v,
+                    v => v,
+                    new ValueComparer<string[]>(
+                        (c1, c2) => c1.SequenceEqual(c2),
+                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c.ToArray())
+                );
+            });
+
+            modelBuilder.Entity<Category>(entity =>
+            {
+                entity.ToTable("categories");
             });
 
             // ===== ADMIN =====
@@ -88,19 +122,50 @@ namespace backend.Models
 
             });
 
-            // ===== SUBSCRIPTION =====
+            modelBuilder.Entity<Payment>(entity =>
+            {
+                entity.ToTable("payments");
+
+                entity.Property(p => p.Id).HasColumnName("id");
+                entity.Property(p => p.Status).HasColumnName("status");
+                entity.Property(p => p.StatusDetail).HasColumnName("status_detail");
+                entity.Property(p => p.PaymentMethodId).HasColumnName("payment_method_id");
+
+                // Alterado para usar os nomes corretos das colunas
+                entity.Property(p => p.PointOfInteraction)
+                    .HasColumnName("point_of_interaction") // Nome correto da coluna
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                        v => JsonSerializer.Deserialize<PointOfInteraction>(v, (JsonSerializerOptions)null));
+
+                entity.Property(p => p.TransactionDetails)
+                    .HasColumnName("transaction_details") // Nome correto da coluna
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                        v => JsonSerializer.Deserialize<TransactionDetails>(v, (JsonSerializerOptions)null));
+            });
             modelBuilder.Entity<Subscription>(entity =>
             {
-                entity.ToTable("subscriptions");  // Nome da tabela minúsculo
-                entity.HasQueryFilter(s => EF.Property<int>(s, "enterprise_id") == CurrentEnterpriseId);
-
-                entity.Property(s => s.EnterpriseId).HasColumnName("enterprise_id");  // Chave estrangeira corretamente mapeada
-
-                entity.HasOne(s => s.SubscriptionType)
-                    .WithMany()
-                    .HasForeignKey(s => s.SubscriptionTypeId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                entity.ToTable("subscriptions");
             });
+
+            modelBuilder.Entity<SubscriptionType>(entity =>
+            {
+                entity.ToTable("subscription_types");
+            });
+
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.ToTable("sales");
+            });
+
+            modelBuilder.Entity<SaleItem>(entity =>
+            {
+                entity.ToTable("sale_items");
+            });
+
 
             // ===== CHAT =====
             modelBuilder.Entity<Chat>(entity =>
@@ -119,6 +184,104 @@ namespace backend.Models
                 entity.Property(c => c.LastMessageDate)
                     .HasColumnType("timestamp with time zone");
             });
+
+            modelBuilder.Entity<Tag>(entity =>
+            {
+                entity.ToTable("tags");
+                entity.Property(c => c.EnterpriseId)
+                .HasColumnName("enterprise_id")
+                .IsRequired();
+
+                entity.Property(c => c.DateCreated)
+                .HasColumnType("timestamp with time zone")
+                .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+            });
+
+            modelBuilder.Entity<Shot>(entity =>
+            {
+                entity.ToTable("shots");
+                entity.Property(c => c.EnterpriseId)
+                    .HasColumnName("enterprise_id")
+                    .IsRequired();
+
+                entity.Property(s => s.ShotFields)
+                .HasColumnName("shot_fields")
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = false
+                    }),
+                    v => JsonSerializer.Deserialize<List<ShotFields>>(v, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true, // Adicione esta linha
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    }),
+                    new ValueComparer<List<ShotFields>>(
+                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c.ToList()));
+
+                entity.Property(s => s.SentClients)
+                .HasColumnName("sent_clients")
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = false
+                    }),
+                    v => JsonSerializer.Deserialize<List<ClientShotDto>>(v, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    }),
+                    new ValueComparer<List<ClientShotDto>>(
+                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c.ToList()));
+
+                entity.Property(s => s.ShotHistory)
+                .HasColumnName("shot_history")
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = false
+                    }),
+                    v => JsonSerializer.Deserialize<List<ShotHistory>>(v, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    }),
+                    new ValueComparer<List<ShotHistory>>(
+                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c.ToList()));
+
+                entity.OwnsOne(s => s.ShotFilters, sf =>
+                {
+                    sf.Property(s => s.TagFilterStatus).HasColumnName("tag_filter_status");
+                    sf.Property(s => s.TagFilter).HasColumnName("tag_filter")
+                        .HasColumnType("jsonb")
+                        .HasConversion(
+                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                            v => JsonSerializer.Deserialize<List<int>>(v, (JsonSerializerOptions?)null));
+
+                    sf.Property(s => s.TypeFilterStatus).HasColumnName("type_filter_status");
+                    sf.Property(s => s.TypeFilter).HasColumnName("type_filter");
+
+                    sf.Property(s => s.SelectedClientsStatus).HasColumnName("selected_clients_status");
+                    sf.Property(s => s.SelectedClients).HasColumnName("selected_clients")
+                        .HasColumnType("jsonb")
+                        .HasConversion(
+                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                            v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null));
+                });
+            });
+
 
             modelBuilder.Entity<Message>(entity =>
             {

@@ -29,8 +29,6 @@ public class EnterpriseController : ControllerBase
         _credentialGenerator = credentialGenerator;
     }
 
-
-    // GET: api/enterprises (apenas para super admin)
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Enterprise>>> GetEnterprises()
     {

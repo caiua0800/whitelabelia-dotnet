@@ -27,7 +27,9 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllAdmins()
         {
-            var admins = await _context.Admins.ToListAsync();
+            var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+            var admins = await _context.Admins.Where(t => t.EnterpriseId == enterpriseId).ToListAsync();
             return Ok(admins);
         }
 
@@ -41,6 +43,41 @@ namespace backend.Controllers
                 return NotFound();
             }
             return Ok(admin);
+        }
+
+        [HttpPut("change-password/{id}")]
+        [Authorize]
+        public async Task<IActionResult> ChangeAdminPassword(int id, [FromBody] ChangePasswordRequest request)
+        {
+            var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+            var admin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.Id == id && a.EnterpriseId == enterpriseId);
+
+            if (admin == null)
+            {
+                return NotFound(new { message = "Administrador não encontrado ou não pertence a esta empresa" });
+            }
+
+            // 3. Validar a nova senha
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            {
+                return BadRequest(new { message = "A nova senha deve ter pelo menos 6 caracteres" });
+            }
+
+            // 4. Se for requisição do próprio usuário (não admin), verificar a senha atual
+            var currentAdminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            if (currentAdminId == id && !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, admin.Password))
+            {
+                return Unauthorized(new { message = "Senha atual incorreta" });
+            }
+
+            // 5. Atualizar a senha
+            admin.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            _context.Admins.Update(admin);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Senha alterada com sucesso" });
         }
 
         // Criar novo Admin

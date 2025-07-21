@@ -1,23 +1,34 @@
 using backend.Models;
 using backend.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text;
+using System.Globalization;
 
 namespace backend.Services;
 
 public interface IChatService
 {
     Task<IEnumerable<Chat>> GetAllChatsAsync();
+    Task<List<ClientShotDto>> GetAllClientShotsDtoAsync();
     Task<string?> GetCustomPromptByChatId(string id);
     Task UpdateChatLastMessageIsSeenAsync(string id);
     Task UpdateCustomPrompt(string id, string prompt);
-    Task<List<Chat>> GetAllChatsWithLastMessageAsync();
+    Task<List<ChatDto>> GetAllChatsWithLastMessageAsync();
     Task<bool?> GetLastMessageIsSeenAsync(string id);
     Task<Chat?> GetChatByIdAsync(string id);
     Task<Chat> CreateChatAsync(Chat chat);
-    Task UpdateChatAsync(Chat chat);
+    Task<Chat> UpdateChatAsync(Chat chat);
     Task DeleteChatAsync(string id);
-
     Task UpdateChatStatusAsync(string id, int newStatus);
+    Task<bool?> UpdateChatTagsAsync(string id, List<int> newTags);
+
+    Task<int> GetClientShotsCountAsync();
+
+    Task<int> CreateMultipleChatsAsync(List<MultipleChat> chats);
+
+    Task<PagedResult<ChatDto>> SearchChatsAsync(string? searchTerm, int pageNumber, int pageSize, string? order = "desc", DateTime? startDate = null, DateTime? endDate = null, List<int>? tagIds = null, bool? withMessage = false);
+
 }
 
 public class ChatService : IChatService
@@ -25,11 +36,13 @@ public class ChatService : IChatService
     private readonly ApplicationDbContext _context;
     private readonly ITenantService _tenantService;
     private readonly IAgentService _agentService;
-    public ChatService(ApplicationDbContext context, ITenantService tenantService, IAgentService agentService)
+    private readonly TagService _tagService;
+    public ChatService(ApplicationDbContext context, ITenantService tenantService, IAgentService agentService, TagService tagService)
     {
         _context = context;
         _tenantService = tenantService;
         _agentService = agentService;
+        _tagService = tagService;
     }
 
     public async Task<IEnumerable<Chat>> GetAllChatsAsync()
@@ -38,6 +51,208 @@ public class ChatService : IChatService
         return await _context.Chats
             .Where(c => c.EnterpriseId == enterpriseId)
             .ToListAsync();
+    }
+
+    public async Task<List<ClientShotDto>> GetAllClientShotsDtoAsync()
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+        var chats = await _context.Chats
+            .Where(c => c.EnterpriseId == enterpriseId)
+            .ToListAsync();
+
+        List<ClientShotDto> result = new List<ClientShotDto>();
+
+        foreach (var chat in chats)
+        {
+            result.Add(new ClientShotDto(chat.ClientName != null ? chat.ClientName : "", chat.Id));
+        }
+
+        return result;
+    }
+
+    public async Task<int> GetClientShotsCountAsync()
+{
+    var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+    return await _context.Chats
+        .Where(c => c.EnterpriseId == enterpriseId)
+        .CountAsync();
+}
+
+    public async Task<int> CreateMultipleChatsAsync(List<MultipleChat> chats)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+        var agent = await _agentService.GetAgent(enterpriseId);
+        var createdCount = 0;
+
+        foreach (var chat in chats)
+        {
+            try
+            {
+                var fullContact = $"55{chat.Contact}";
+
+                var newChat = new Chat
+                {
+                    Id = fullContact,
+                    ClientName = chat.Name,
+                    AgentNumber = agent?.Number,
+                    Status = 1,
+                    EnterpriseId = enterpriseId,
+                    DateCreated = DateTime.UtcNow,
+                    ClientNameNormalized = RemoveAccents(chat.Name),
+                    Tags = chat.Tags,
+                };
+
+                _context.Chats.Add(newChat);
+                createdCount++;
+            }
+            catch (Exception ex)
+            {
+                // Log do erro e continua com os próximos chats
+                Console.WriteLine($"Erro ao criar chat para {chat.Name}: {ex.Message}");
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return createdCount;
+    }
+
+    public async Task<PagedResult<ChatDto>> SearchChatsAsync(
+    string? searchTerm,
+    int pageNumber,
+    int pageSize,
+    string? order = "desc",
+    DateTime? startDate = null,
+    DateTime? endDate = null,
+    List<int>? tagIds = null,
+    bool? withMessage = false)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var query = _context.Chats
+            .Where(c => c.EnterpriseId == enterpriseId);
+
+        // Aplica o filtro withMessage
+        if (withMessage.HasValue)
+        {
+            if (withMessage.Value)
+            {
+                query = query.Where(c => c.LastMessageText != null);
+            }
+            else
+            {
+                // Se false, pode ter mensagem ou não (não filtra)
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = $"%{RemoveAccents(searchTerm.ToLower())}%";
+            query = query.Where(c =>
+                EF.Functions.ILike(c.ClientNameNormalized, term) ||
+                EF.Functions.ILike(c.Id, term));
+        }
+
+        if (startDate.HasValue)
+        {
+            query = query.Where(c => c.DateCreated >= startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endDateInclusive = endDate.Value.AddDays(1);
+            query = query.Where(c => c.DateCreated < endDateInclusive);
+        }
+
+        // Filtro por tags - apenas chats que contêm TODAS as tags especificadas
+        if (tagIds != null && tagIds.Any())
+        {
+            query = query.Where(c => c.Tags != null && tagIds.All(tagId => c.Tags.Contains(tagId)));
+        }
+
+        var totalCount = await query.CountAsync();
+
+        query = order?.ToLower() switch
+        {
+            "asc" => query.OrderBy(c => c.LastMessageDate ?? c.DateCreated),
+            _ => query.OrderByDescending(c => c.LastMessageDate ?? c.DateCreated)
+        };
+
+        var pagedChats = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var chatDtos = new List<ChatDto>();
+        foreach (var chat in pagedChats)
+        {
+            List<string> tagNames = new List<string>();
+            if (chat.Tags != null)
+            {
+                foreach (var tagId in chat.Tags)
+                {
+                    var tag = await _tagService.GetTagByIdAsync(tagId);
+                    if (tag != null)
+                        tagNames.Add(tag.Name);
+                }
+            }
+
+            chatDtos.Add(new ChatDto
+            {
+                Id = chat.Id,
+                ClientName = chat.ClientName,
+                Status = chat.Status,
+                LastMessageText = chat.LastMessageText,
+                AgentNumber = chat.AgentNumber,
+                DateCreated = chat.DateCreated,
+                LastMessageDate = chat.LastMessageDate,
+                LastMessageIsReply = chat.LastMessageIsReply,
+                LastMessageIsSeen = chat.LastMessageIsSeen,
+                EnterpriseId = chat.EnterpriseId,
+                CustomPrompt = chat.CustomPrompt,
+                Street = chat.Street,
+                Number = chat.Number,
+                Neighborhood = chat.Neighborhood,
+                Zipcode = chat.Zipcode,
+                City = chat.City,
+                Complement = chat.Complement,
+                Country = chat.Country,
+                State = chat.State,
+                Tags = chat.Tags,
+                TagNames = tagNames
+            });
+        }
+
+        return new PagedResult<ChatDto>(chatDtos, totalCount, pageNumber, pageSize);
+    }
+
+    public async Task<List<string>?> GetChatByIdAsync(List<int> tagIds)
+    {
+        List<string> tagNames = new List<string>();
+
+        foreach (var tagId in tagIds)
+        {
+            var aux = await _tagService.GetTagByIdAsync(tagId);
+            if (aux != null)
+                tagNames.Add(aux.Name);
+        }
+
+        return tagNames;
+    }
+
+
+    private static string RemoveAccents(string text)
+    {
+        // FIRST, check if the input is null or whitespace.
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text; // Return the original value (null or whitespace) immediately.
+        }
+
+        // Now it's safe to perform operations on the text.
+        text = text.ToLower();
+        text = text.Normalize(NormalizationForm.FormD);
+        var chars = text.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray();
+        return new string(chars).Normalize(NormalizationForm.FormC);
     }
 
     public async Task<Chat?> GetChatByIdAsync(string id)
@@ -66,34 +281,94 @@ public class ChatService : IChatService
 
     public async Task<Chat> CreateChatAsync(Chat chat)
     {
+        if (chat.ClientName != null)
+            chat.ClientNameNormalized = RemoveAccents(chat.ClientName);
+        chat.Status = 1;
         _context.Chats.Add(chat);
         await _context.SaveChangesAsync();
         return chat;
     }
 
-    public async Task<List<Chat>> GetAllChatsWithLastMessageAsync()
+    public async Task<List<ChatDto>> GetAllChatsWithLastMessageAsync()
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
         var chats = await _context.Chats
             .Where(c => c.EnterpriseId == enterpriseId)
+            .OrderByDescending(c => c.LastMessageDate ?? c.DateCreated)
             .ToListAsync();
-        return chats;
+
+        var chatDtos = new List<ChatDto>();
+
+        foreach (var chat in chats)
+        {
+            var chatTags = chat.Tags;
+            List<string> tagNames = new List<string>();
+
+            Console.WriteLine($"chatTags é null? {chatTags == null}");
+            if (chatTags != null)
+            {
+                foreach (var tag in chatTags)
+                {
+                    Console.WriteLine($"tag encontrada");
+                    Console.WriteLine($"{tag}");
+                    var aux = await _tagService.GetTagByIdAsync(tag);
+                    if (aux != null)
+                        tagNames.Add(aux.Name);
+                    Console.WriteLine($"{aux?.Name}");
+
+                }
+            }
+
+            chatDtos.Add(new ChatDto
+            {
+                Id = chat.Id,
+                Status = chat.Status,
+                LastMessageText = chat.LastMessageText,
+                AgentNumber = chat.AgentNumber,
+                DateCreated = chat.DateCreated,
+                LastMessageDate = chat.LastMessageDate,
+                LastMessageIsReply = chat.LastMessageIsReply,
+                LastMessageIsSeen = chat.LastMessageIsSeen,
+                EnterpriseId = chat.EnterpriseId,
+                CustomPrompt = chat.CustomPrompt,
+                ClientName = chat.ClientName,
+                ClientNameNormalized = chat.ClientNameNormalized,
+                Street = chat.Street,
+                Number = chat.Number,
+                Neighborhood = chat.Neighborhood,
+                Zipcode = chat.Zipcode,
+                City = chat.City,
+                Complement = chat.Complement,
+                Country = chat.Country,
+                State = chat.State,
+                Tags = chat.Tags,
+                TagNames = tagNames
+            });
+        }
+
+        return chatDtos;
     }
 
-    public async Task UpdateChatAsync(Chat chat)
+    public async Task<Chat> UpdateChatAsync(Chat chat)
     {
+        Console.WriteLine($"Chat recebido para atualização: {JsonSerializer.Serialize(chat)}");
+
         var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
 
         if (!enterpriseId.HasValue && !string.IsNullOrEmpty(chat.AgentNumber))
         {
-            Console.WriteLine($"Não foi o carai: {chat.AgentNumber}");
+            Console.WriteLine("Obtendo EnterpriseId pelo número do agente");
             enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(chat.AgentNumber);
         }
 
         if (!enterpriseId.HasValue)
         {
+            Console.WriteLine("EnterpriseId não encontrado");
             throw new InvalidOperationException("Não foi possível determinar o EnterpriseId");
         }
+
+        Console.WriteLine($"EnterpriseId determinado: {enterpriseId}");
 
         var existingChat = await _context.Chats
             .Where(c => c.Id == chat.Id && c.EnterpriseId == enterpriseId)
@@ -101,12 +376,23 @@ public class ChatService : IChatService
 
         if (existingChat == null)
         {
+            Console.WriteLine($"Chat não encontrado para o EnterpriseId: {enterpriseId}");
             throw new UnauthorizedAccessException("Chat não pertence ao tenant atual");
         }
 
-        chat.EnterpriseId = enterpriseId.Value;
-        _context.Entry(chat).State = EntityState.Modified;
+        existingChat.ClientName = chat.ClientName;
+        existingChat.ClientNameNormalized = RemoveAccents(chat.ClientName);
+        existingChat.Street = chat.Street;
+        existingChat.Neighborhood = chat.Neighborhood;
+        existingChat.Number = chat.Number;
+        existingChat.City = chat.City;
+        existingChat.State = chat.State;
+        existingChat.Country = chat.Country;
+        existingChat.Zipcode = chat.Zipcode;
+        existingChat.Complement = chat.Complement;
+
         await _context.SaveChangesAsync();
+        return existingChat;
     }
 
     public async Task UpdateChatStatusAsync(string id, int newStatus)
@@ -141,6 +427,23 @@ public class ChatService : IChatService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<bool?> UpdateChatTagsAsync(string chatId, List<int> newTags)
+    {
+        var chat = await _context.Chats
+            .Where(c => c.Id == chatId)
+            .FirstOrDefaultAsync();
+
+        if (chat == null)
+        {
+            return null;
+        }
+
+        chat.Tags = newTags;
+        _context.Entry(chat).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task UpdateCustomPrompt(string id, string prompt)
     {
         var chat = await _context.Chats
@@ -170,6 +473,5 @@ public class ChatService : IChatService
             await _context.SaveChangesAsync();
         }
     }
-
-
 }
+

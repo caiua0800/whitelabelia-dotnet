@@ -27,6 +27,9 @@ public class Admin
     [Column("enterprise_id")]
     public int EnterpriseId { get; set; }
 
+    [Column("date_created")]
+    public DateTime? DateCreated { get; set; }
+
     [Column("email")]
     public string? Email { get; set; }
 

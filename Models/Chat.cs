@@ -39,4 +39,29 @@ public class Chat : IHasEnterpriseId
 
     [Column("custom_prompt")]
     public string? CustomPrompt { get; set; }
+
+    [Column("client_name")]
+    public string? ClientName { get; set; }
+
+    [Column("client_name_normalized")]
+    public string? ClientNameNormalized { get; set; }
+
+    [Column("street")]
+    public string? Street { get; set; }
+    [Column("number")]
+    public string? Number { get; set; }
+    [Column("neighborhood")]
+    public string? Neighborhood { get; set; }
+    [Column("zipcode")]
+    public string? Zipcode { get; set; }
+    [Column("city")]
+    public string? City { get; set; }
+    [Column("complement")]
+    public string? Complement { get; set; }
+    [Column("country")]
+    public string? Country { get; set; }
+    [Column("state")]
+    public string? State { get; set; }
+    [Column("tags")]
+    public List<int>? Tags { get; set; }
 }

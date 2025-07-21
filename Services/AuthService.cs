@@ -16,6 +16,11 @@ namespace backend.Services
             _configuration = configuration;
         }
 
+        public bool HasPermission(ClaimsPrincipal user, string permission)
+        {
+            return user.FindAll("permission").Any(c => c.Value == permission);
+        }
+
         public string GenerateAccessToken(Admin admin)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -28,12 +33,11 @@ namespace backend.Services
                 new Claim("EnterpriseId", admin.EnterpriseId.ToString())
             };
 
-            // Adicionar permissões permitidas (Allowed == true)
             if (admin.Permissions != null && admin.Permissions.Any())
             {
                 foreach (var permission in admin.Permissions.Where(p => p.Allowed))
                 {
-                    claims.Add(new Claim("permission", permission.Name)); 
+                    claims.Add(new Claim("permission", permission.Name));
                     // você pode usar "permission" ou "role" como claim type, depende como quer no payload
                 }
             }

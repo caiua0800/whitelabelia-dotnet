@@ -8,9 +8,10 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Cors;
 using System.Net.WebSockets;
+using DinkToPdf.Contracts;
+using DinkToPdf;
 
 var builder = WebApplication.CreateBuilder(args);
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -30,31 +31,40 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<ICredentialGeneratorService, CredentialGeneratorService>();
+builder.Services.AddScoped<TagService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<EnterpriseService>();
+builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<SaleItemService>();
+builder.Services.AddScoped<MercadoPagoService>();
+builder.Services.AddScoped<SubscriptionTypeService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ShotService>();
 builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<IChatExportService, ChatExportService>();
 builder.Services.AddScoped<IAgentService, AgentService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddSingleton<WebSocketConnections>();
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
-// Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
-// Configure DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CONFIGURAR AUTENTICAÇÃO JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false, // Opcional: configure para true se você quiser validar o emissor
-            ValidateAudience = false, // Opcional: configure para true se quiser validar o público
+            ValidateIssuer = false, 
+            ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"])) // Sua chave secreta aqui
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"])) 
         };
     });
 
@@ -69,7 +79,6 @@ app.Map("/ws", async context =>
         using var ws = await context.WebSockets.AcceptWebSocketAsync();
         var buffer = new byte[1024 * 4];
         
-        // Adicione a conexão a um grupo de conexões ativas
         var webSocketConnections = context.RequestServices.GetRequiredService<WebSocketConnections>();
         var connectionId = webSocketConnections.AddConnection(ws);
 
@@ -99,13 +108,10 @@ app.Map("/ws", async context =>
 });
 
 
-// Use Authentication antes dos Controllers!
 app.UseAuthentication();
 
-// Adicione o middleware de tenant antes dos controllers
 app.UseMiddleware<TenantMiddleware>();
 
-// Authorization precisa vir depois da autenticação
 app.UseAuthorization();
 
 app.MapControllers();

@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models;
 
-[Table("subscription_types")]
 public class SubscriptionType
 {
 
@@ -14,25 +13,29 @@ public class SubscriptionType
 
     [Required]
     [Column("name")]
-    public required int Name { get; set; }
+    public string Name { get; set; }
 
     [Required]
     [Column("value")]
-    public required int Value { get; set; }
+    public double Value { get; set; }
 
     [Required]
     [Column("implantation_value")]
-    public required double ImplantationValue { get; set; }
+    public double? ImplantationValue { get; set; }
 
-    [Required]
     [Column("duration")]
-    public required int? Duration { get; set; }
+    public int? Duration { get; set; }
 
-    [Required]
     [Column("date_created")]
     public DateTime? DateCreated { get; set; }
 
-    [Required]
-    [Column("enterprise_id")]
-    public int EnterpriseId { get; set; }
+    [Column("shots_qtt")]
+    public int? ShotsQtt { get; set; }
+
+    [Column("users_qtt")]
+    public int? UsersQtt { get; set; }
+
+    [Column("start_chats_qtt")]
+    public int? StartChatsQtt { get; set; }
+
 }
