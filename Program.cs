@@ -153,8 +153,6 @@ if (app.Environment.IsDevelopment())
 // Mapeamento de controllers
 app.MapControllers();
 
-// Configuração final de URLs
-app.Urls.Add("http://0.0.0.0:5097");  // Para comunicação interna com Nginx
-app.Urls.Add("https://0.0.0.0:5098"); // Opcional: HTTPS direto (se necessário)
+app.Urls.Add("http://0.0.0.0:5097");
 
 app.Run();
