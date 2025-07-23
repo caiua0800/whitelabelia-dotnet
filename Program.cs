@@ -18,23 +18,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS configurado para produção e desenvolvimento
+// Configuração CORS para permitir qualquer origem
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-                "https://demelloagent.app",          // Frontend na Vercel
-                "https://backend.demelloagent.app",  // Seu próprio backend
-                "http://localhost:3000"              // Frontend local
-              )
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();  // Importante para WebSockets e autenticação
+              .AllowAnyHeader();
     });
 });
 
-
+// Registro de serviços
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
@@ -54,9 +49,10 @@ builder.Services.AddScoped<ShotService>();
 builder.Services.AddScoped<AgentService>();
 builder.Services.AddScoped<IChatExportService, ChatExportService>();
 builder.Services.AddScoped<IAgentService, AgentService>();
-builder.Services.AddScoped<ITenantService, TenantService>();
+
 builder.Services.AddSingleton<WebSocketConnections>();
 builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+builder.Services.AddHttpContextAccessor();
 
 // Configuração do banco de dados
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -99,7 +95,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 
 // Habilitar CORS antes de outros middlewares
-app.UseCors("AllowSpecificOrigins");
+app.UseCors("AllowAll"); // Alterado para usar a política "AllowAll"
 
 // Middlewares de autenticação/autorização
 app.UseAuthentication();
