@@ -4,6 +4,8 @@ using backend.Services;
 using backend.DTOs;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using backend.Interfaces;
 
 namespace backend.Controllers;
 
@@ -12,10 +14,12 @@ namespace backend.Controllers;
 public class SaleController : ControllerBase
 {
     private readonly SaleService _saleService;
+    private readonly IAgentService _agentService;
 
-    public SaleController(SaleService saleService)
+    public SaleController(SaleService saleService, IAgentService agentService)
     {
         _saleService = saleService;
+        _agentService = agentService;
     }
 
     [HttpGet]
@@ -77,18 +81,56 @@ public class SaleController : ControllerBase
         }
     }
 
-    [HttpPost("enterprise/{enterpriseId}")]
-    public async Task<ActionResult<SaleWithProductsDto>> Create([FromBody] CreateSaleDto createSaleDto, int enterpriseId)
+    [HttpPost("enterprise/{agentNumberId}")]
+    public async Task<ActionResult<SaleWithProductsDto>> Create([FromBody] CreateSaleDto createSaleDto, string agentNumberId)
     {
         try
         {
+            var enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(agentNumberId);
             Console.WriteLine($"enterpriseId2: {enterpriseId}");
-            var createdSale = await _saleService.CreateSaleAsync(createSaleDto, enterpriseId);
-            return CreatedAtAction(nameof(GetById), new { id = createdSale.Sale.Id }, createdSale);
+
+            var createdSale = await _saleService.CreateSaleAsync(createSaleDto, (int)enterpriseId);
+
+            // Modificado: Inclui enterpriseId no DTO de retorno
+            var result = new SaleWithProductsDto(
+                createdSale.Sale,
+                createdSale.Products,
+                createdSale.Payment,
+                enterpriseId // Adiciona o enterpriseId aqui
+            );
+
+            return CreatedAtAction(nameof(GetById), new { id = createdSale.Sale.Id }, result);
         }
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpPut("{id}/new-status/{newStatus}")]
+    public async Task<ActionResult<Sale>> UpdateStatus(
+            int id,
+            int newStatus)
+    {
+        try
+        {
+            var updatedSale = await _saleService.UpdateSaleStatusAsync(id, newStatus);
+
+            if (updatedSale == null)
+            {
+                return NotFound("Venda não encontrada");
+            }
+
+            return Ok(updatedSale);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Erro interno: {ex.Message}");
+        }
+    }
 }
+

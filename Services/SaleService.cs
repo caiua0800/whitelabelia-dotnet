@@ -1,3 +1,5 @@
+/* The above code is a C# class named `SaleService` that provides various methods for managing sales in
+a backend application. Here is a summary of what the code is doing: */
 using backend.Models;
 using backend.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -199,6 +201,39 @@ public class SaleService
 
         var saleProducts = await _saleItemService.GetSaleProductsBySaleIdAsync(sale.Id);
         return new SaleWithProductsDto(sale, saleProducts, payment);
+    }
+
+    public async Task<Sale?> UpdateSaleStatusAsync(int saleId, int newStatus)
+    {
+
+        var sale = await _context.Sales
+            .Where(s => s.Id == saleId)
+            .FirstOrDefaultAsync();
+
+        if (sale == null)
+        {
+            return null;
+        }
+
+        if (newStatus < 0 || newStatus > 5)
+        {
+            throw new ArgumentException("Status inválido");
+        }
+
+        sale.Status = newStatus;
+        sale.DateUpdated = DateTime.Now; // Atualiza a data de modificação
+
+        try
+        {
+            _context.Sales.Update(sale);
+            await _context.SaveChangesAsync();
+            return sale;
+        }
+        catch (DbUpdateException ex)
+        {
+            Console.WriteLine($"Erro ao atualizar status da venda: {ex.Message}");
+            throw;
+        }
     }
 }
 

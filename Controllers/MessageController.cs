@@ -30,10 +30,10 @@ public class MessageController : ControllerBase
         return message;
     }
 
-    [HttpGet("chat/{chatId}")]
-    public async Task<ActionResult<IEnumerable<Message>>> GetMessagesByChatId(string chatId)
+    [HttpGet("chat/{chatId}/{agentNumber}")]
+    public async Task<ActionResult<IEnumerable<Message>>> GetMessagesByChatId(string chatId, string agentNumber)
     {
-        var messages = await _messageService.GetMessagesByChatIdAsync(chatId);
+        var messages = await _messageService.GetMessagesByChatIdAsync(chatId, agentNumber);
 
         if (messages == null || !messages.Any())
         {

@@ -168,21 +168,37 @@ namespace backend.Models
 
 
             // ===== CHAT =====
+            // ===== CHAT =====
             modelBuilder.Entity<Chat>(entity =>
             {
                 entity.ToTable("chats");
 
-                // Mapeamento explícito PRIMEIRO
                 entity.Property(c => c.EnterpriseId)
                     .HasColumnName("enterprise_id")
                     .IsRequired();
 
                 entity.Property(c => c.DateCreated)
-                .HasColumnType("timestamp with time zone")
-                .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+                    .HasColumnType("timestamp with time zone")
+                    .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
 
-                entity.Property(c => c.LastMessageDate)
-                    .HasColumnType("timestamp with time zone");
+                entity.Property(c => c.LastMessages)
+                    .HasColumnName("last_messages")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                            WriteIndented = false
+                        }),
+                        v => JsonSerializer.Deserialize<List<LastMessageDto>>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true,
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        new ValueComparer<List<LastMessageDto>>(
+                            (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+                            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                            c => c.ToList()));
             });
 
             modelBuilder.Entity<Tag>(entity =>

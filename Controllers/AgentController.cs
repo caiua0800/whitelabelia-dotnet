@@ -15,17 +15,44 @@ public class AgentController : ControllerBase
         _agentService = agentService;
     }
 
+    [HttpPost]
+    public async Task<ActionResult<Category>> Create([FromBody] Agent agent)
+    {
+        try
+        {
+            var createdItem = await _agentService.CreateAgentAsync(agent);
+            return CreatedAtAction(nameof(GetById), new { id = createdItem.Id }, createdItem);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpGet]
+    public async Task<ActionResult<Agent>> GetById([FromQuery] int id)
+    {
+        var agentPrompt = await _agentService.GetAgentById(id);
+        return Ok(agentPrompt);
+    }
+
+    [HttpGet("agent-prompt")]
     public async Task<ActionResult<string>> GetAgentPrompt1([FromQuery] string agentNumber)
     {
         var agentPrompt = await _agentService.GetPrompt1(agentNumber);
         return Ok(agentPrompt);
     }
 
-    [HttpGet("prompt")]
-    public async Task<ActionResult<string?>> GetAgentPrompt()
+    [HttpGet("all")]
+    public async Task<List<Agent>?> GetAgentsByEnterpriseId()
     {
-        var agentPrompt = await _agentService.GetPrompt();
+        return await _agentService.GetAgentsByEnterpriseId();
+    }
+
+    [HttpGet("prompt")]
+    public async Task<ActionResult<string?>> GetAgentPrompt([FromQuery] string? agentNumber)
+    {
+        var agentPrompt = await _agentService.GetPrompt(agentNumber);
         return Ok(agentPrompt);
     }
 
@@ -37,19 +64,24 @@ public class AgentController : ControllerBase
             return BadRequest("O prompt não pode ser vazio");
         }
 
-        var success = await _agentService.UpdatePrompt(updatePromptDto.NewPrompt);
-        
+        if (string.IsNullOrWhiteSpace(updatePromptDto.AgentNumber))
+        {
+            return BadRequest("Número do agente não especificado");
+        }
+
+        var success = await _agentService.UpdatePrompt(updatePromptDto.NewPrompt, updatePromptDto.AgentNumber);
+
         if (!success)
         {
-            return NotFound("Agente não encontrado para esta empresa");
+            return NotFound("Agente não encontrado");
         }
 
         return Ok();
     }
 }
 
-// DTO para a atualização do prompt
 public class UpdatePromptDto
 {
     public string NewPrompt { get; set; } = string.Empty;
+    public string AgentNumber { get; set; } = string.Empty;
 }

@@ -36,16 +36,17 @@ public class SaleItemService
             .Where(si => si.SaleId == saleId && si.EnterpriseId == enterpriseId)
             .ToListAsync();
 
-
         var saleProducts = new List<SaleProductDto>();
-
-        Console.WriteLine($"saleItems: {saleItems.Count}");
 
         foreach (var saleItem in saleItems)
         {
-
             var product = await _productService.GetProductById(saleItem.ProductId);
-            Console.WriteLine($"product.Id: {product.Id}");
+
+            if (product == null)
+            {
+                Console.WriteLine($"Produto não encontrado para ID: {saleItem.ProductId}");
+                continue; 
+            }
 
             var productDto = new SaleProductDto(
                 product.Id,

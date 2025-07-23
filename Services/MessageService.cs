@@ -8,7 +8,7 @@ namespace backend.Services;
 
 public interface IMessageService
 {
-    Task<IEnumerable<Message>> GetMessagesByChatIdAsync(string chatId);
+    Task<IEnumerable<Message>> GetMessagesByChatIdAsync(string chatId, string agentNumber);
     Task<Message> GetMessageByIdAsync(int id);
     Task<Message> SendMessageAsync(Message message);
     Task UpdateMessageAsync(Message message);
@@ -38,11 +38,11 @@ public class MessageService : IMessageService
         _webSocketConnections = webSocketConnections;
     }
 
-    public async Task<IEnumerable<Message>> GetMessagesByChatIdAsync(string chatId)
+    public async Task<IEnumerable<Message>> GetMessagesByChatIdAsync(string chatId, string agentNumber)
     {
         return await _context.Messages
             .IgnoreQueryFilters() // Ignora o HasQueryFilter
-            .Where(m => m.ChatId == chatId)
+            .Where(m => m.ChatId == chatId && m.AgentNumber == agentNumber)
             .OrderBy(m => m.DateCreated)
             .ToListAsync();
     }
@@ -63,16 +63,16 @@ public class MessageService : IMessageService
 
     public async Task<Message> SendMessageAsync(Message message)
     {
-        message.IsReply = message.IsReply ?? false; // Garante um valor padrão
+        message.IsReply = message.IsReply ?? false;
 
-        var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
+        // var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
 
-        if (!enterpriseId.HasValue && !string.IsNullOrEmpty(message.AgentNumber))
-        {
-            enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(message.AgentNumber);
-        }
-
-        // Se ainda não tem enterpriseId, lança exceção ou usa um valor padrão
+        // if (!enterpriseId.HasValue && !string.IsNullOrEmpty(message.AgentNumber))
+        // {
+        //     enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(message.AgentNumber);
+        // }
+        var enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(message.AgentNumber);
+        Console.WriteLine($"message.AgentNumber do sen {message.AgentNumber}");
         if (!enterpriseId.HasValue)
         {
             throw new InvalidOperationException("Não foi possível determinar o EnterpriseId");
@@ -91,7 +91,7 @@ public class MessageService : IMessageService
                 DateCreated = DateTime.UtcNow,
                 Status = 1,
                 AgentNumber = message.AgentNumber,
-                LastMessageIsSeen = false
+                LastMessages = new List<LastMessageDto>()
             };
             await _chatService.CreateChatAsync(chat);
         }
@@ -99,10 +99,24 @@ public class MessageService : IMessageService
         _context.Messages.Add(message);
         await _context.SaveChangesAsync();
 
-        chat.LastMessageText = message.Text;
-        chat.LastMessageIsSeen = false;
-        chat.LastMessageDate = DateTime.UtcNow;
-        chat.LastMessageIsReply = message.IsReply;
+        // Atualiza a lista de últimas mensagens
+        chat.LastMessages.Add(new LastMessageDto
+        {
+            AgentNumber = message.AgentNumber,
+            Text = message.Text,
+            IsSeen = false,
+            IsReply = message.IsReply ?? false,
+            DateCreated = DateTime.UtcNow
+        });
+
+        // Mantém apenas as últimas N mensagens (ex: 5)
+        if (chat.LastMessages.Count > 5)
+        {
+            chat.LastMessages = chat.LastMessages
+                .OrderByDescending(m => m.DateCreated)
+                .Take(5)
+                .ToList();
+        }
 
         await _chatService.UpdateChatAsync(chat);
 

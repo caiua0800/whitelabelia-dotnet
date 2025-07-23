@@ -42,6 +42,12 @@ public class ChatDto
     [Column("client_name")]
     public string? ClientName { get; set; }
 
+    [Column("client_email")]
+    public string? ClientEmail { get; set; }
+
+    [Column("client_cpf_cnpj")]
+    public string? ClientCpfCnpj { get; set; }
+
     [Column("client_name_normalized")]
     public string? ClientNameNormalized { get; set; }
 

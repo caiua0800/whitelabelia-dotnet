@@ -41,6 +41,9 @@ public class Sale : IHasEnterpriseId
     [Column("date_created")]
     public DateTime? DateCreated { get; set; }
 
+    [Column("date_updated")]
+    public DateTime? DateUpdated { get; set; }
+
     [Column("sale_items")]
     public List<SaleItem>? SaleItems { get; set; }
 }

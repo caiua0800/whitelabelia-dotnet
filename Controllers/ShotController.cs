@@ -58,11 +58,32 @@ public class ShotController : ControllerBase
     }
 
     [HttpPost("send/{id}")]
-    public async Task<IActionResult> SendShot(int id, [FromBody] List<ClientShotDto> clients)
+    public async Task<IActionResult> SendShot(int id, [FromBody] List<ClientShotDto> clients, [FromQuery] string agentNumber)
     {
         try
         {
-            await _shotService.SendShot(id, clients);
+            await _shotService.SendShot(id, agentNumber, clients);
+            Console.WriteLine($"agentNumber: {agentNumber}");
+            return Ok("Mensagens Enviadas com sucesso");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("send2/{id}")]
+    public async Task<IActionResult> SendShotStartingLeads(int id, [FromBody] List<ClientShotDto> clients, [FromQuery] string agentNumber)
+    {
+        try
+        {
+            Console.WriteLine($"agentNumber 2: {agentNumber}");
+
+            await _shotService.SendShotStartingLeads(id, agentNumber, clients);
             return Ok("Mensagens Enviadas com sucesso");
         }
         catch (UnauthorizedAccessException ex)
@@ -76,11 +97,29 @@ public class ShotController : ControllerBase
     }
 
     [HttpPost("start-chat")]
-    public async Task<IActionResult> SendShot([FromBody] ClientShotDtoStart dto)
+    public async Task<IActionResult> SendShot([FromBody] ClientShotDtoStart dto, [FromQuery] string agentNumber)
     {
         try
         {
-            await _shotService.SendStartChatShot(dto.ClientShotDto, dto.TextToSend, dto.MyName);
+            await _shotService.SendStartChatShot(dto.ClientShotDto, dto.TextToSend, dto.MyName, agentNumber);
+            return Ok("Chat iniciado com sucesso.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("start-chat-leads")]
+    public async Task<IActionResult> SendShotLeads([FromBody] ClientShotDtoStartLeads dto, [FromQuery] string agentNumber)
+    {
+        try
+        {
+            await _shotService.SendStartChatLeadsShot(dto.ClientShotDto, agentNumber);
             return Ok("Chat iniciado com sucesso.");
         }
         catch (UnauthorizedAccessException ex)

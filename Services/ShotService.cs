@@ -118,7 +118,6 @@ public class ShotService
         var json = JsonSerializer.Serialize(shot.ShotFields);
         Console.WriteLine($"Serialized ShotFields: {json}");
 
-        // Garanta que ShotFields não seja nulo
         shot.ShotFields ??= new List<ShotFields>();
 
         _context.Shots.Add(shot);
@@ -169,11 +168,10 @@ public class ShotService
         await _context.SaveChangesAsync();
     }
 
-    public async Task SendShot(int id, List<ClientShotDto> clients)
+    public async Task SendShot(int id, string agentNumber, List<ClientShotDto> clients)
     {
 
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
-        Console.WriteLine($"EnterpriseId: {enterpriseId}");
 
         var shot = await _context.Shots
             .Where(c => c.Id == id && c.EnterpriseId == enterpriseId)
@@ -201,7 +199,8 @@ public class ShotService
                 recipients = clients,
                 model_name = shot.ModelName,
                 model_language = "pt_BR",
-                text = GetTextFromShotFields(shot.ShotFields)
+                text = GetTextFromShotFields(shot.ShotFields),
+                agentNumber
             };
 
             try
@@ -218,7 +217,7 @@ public class ShotService
                     DateSent = DateTime.UtcNow,
                     ClientsQtt = clientsCount,
                     SentClients = clients,
-                    Status = 2 // Status de enviado
+                    Status = 2 
                 });
 
                 shot.Status = 2;
@@ -230,7 +229,6 @@ public class ShotService
             }
             catch (Exception ex)
             {
-                // Adiciona entrada de erro no histórico
                 shot.ShotHistory.Add(new ShotHistory
                 {
                     DateSent = DateTime.UtcNow,
@@ -259,7 +257,107 @@ public class ShotService
         await _context.SaveChangesAsync();
     }
 
-    public async Task SendStartChatShot(ClientShotDto client, string textToSend, string myName)
+    public async Task SendShotStartingLeads(int id, string agentNumber, List<ClientShotDto> clients)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+        var shot = await _context.Shots
+            .Where(c => c.Id == id && c.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (shot == null)
+        {
+            Console.WriteLine("Disparo não encontrado ou não pertence ao tenant");
+            throw new UnauthorizedAccessException("Disparo não pertence ao tenant atual");
+        }
+
+        shot.ShotHistory ??= new List<ShotHistory>();
+
+        var clientsCount = clients.Count;
+
+        var requestData = new
+        {
+            recipients = clients,
+            model_name = "start_chat_leads_1", // Nome do modelo corrigido
+            model_language = "pt_BR",
+            agentNumber
+        };
+
+        try
+        {
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-multiple-model-start-chat-leads", requestData);
+                Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
+                response.EnsureSuccessStatusCode();
+            }
+
+            shot.ShotHistory.Add(new ShotHistory
+            {
+                DateSent = DateTime.UtcNow,
+                ClientsQtt = clientsCount,
+                SentClients = clients,
+                Status = 2 // Status de enviado
+            });
+
+            shot.Status = 2;
+            shot.SentClients = clients;
+            shot.ClientsQtt = shot.SentClients?.Count ?? 0;
+            shot.SendShotDate = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            shot.ShotHistory.Add(new ShotHistory
+            {
+                DateSent = DateTime.UtcNow,
+                Status = 4,
+                ClientsQtt = 0
+            });
+
+            Console.WriteLine($"Erro ao enviar disparo: {ex.Message}");
+            throw;
+        }
+
+        _context.Entry(shot).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task SendStartChatShot(ClientShotDto client, string textToSend, string myName, string agentNumber)
+    {
+
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var requestData = new
+        {
+            recipient = client,
+            model_name = "start_chat",
+            model_language = "pt_BR",
+            text = textToSend,
+            client_name = myName,
+            agentNumber
+        };
+
+        Console.WriteLine($"agentNumber (SendStartChatShot): {agentNumber}");
+
+        try
+        {
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-start-chat", requestData);
+                Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
+                response.EnsureSuccessStatusCode();
+            }
+            Console.WriteLine("Conversa iniciada com sucesso");
+        }
+        catch (Exception ex)
+        {
+
+            Console.WriteLine($"Erro ao iniciar conversa: {ex.Message}");
+            throw;
+        }
+
+    }
+
+    public async Task SendStartChatLeadsShot(ClientShotDto client, string agentNumber)
     {
 
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
@@ -270,15 +368,14 @@ public class ShotService
             recipient = client,
             model_name = "start_chat",
             model_language = "pt_BR",
-            text = textToSend,
-            client_name = myName
+            agentNumber
         };
 
         try
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-start-chat", requestData);
+                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-start-chat-leads", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }

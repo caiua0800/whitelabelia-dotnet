@@ -15,23 +15,14 @@ public class Chat : IHasEnterpriseId
     [Column("status")]
     public int Status { get; set; }
 
-    [Column("last_message_text")]
-    public string? LastMessageText { get; set; }
+    [Column("last_messages")]
+    public List<LastMessageDto>? LastMessages { get; set; }
 
     [Column("agent_number")]
     public string? AgentNumber { get; set; }
 
     [Column("date_created", TypeName = "timestamp with time zone")]
     public DateTime DateCreated { get; set; } = DateTime.UtcNow;
-
-    [Column("last_message_date", TypeName = "timestamp with time zone")]
-    public DateTime? LastMessageDate { get; set; }
-
-    [Column("last_message_is_reply")]
-    public bool? LastMessageIsReply { get; set; }
-
-    [Column("last_message_is_seen")]
-    public bool? LastMessageIsSeen { get; set; }
 
     [Required]
     [Column("enterprise_id")]
@@ -42,6 +33,12 @@ public class Chat : IHasEnterpriseId
 
     [Column("client_name")]
     public string? ClientName { get; set; }
+
+    [Column("client_email")]
+    public string? ClientEmail { get; set; }
+
+    [Column("client_cpf_cnpj")]
+    public string? ClientCpfCnpj { get; set; }
 
     [Column("client_name_normalized")]
     public string? ClientNameNormalized { get; set; }

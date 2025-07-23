@@ -18,9 +18,9 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ChatWithLastMessageDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<ChatWithLastMessageDto>>> GetAll([FromQuery] string agentNumber)
     {
-        var chats = await _chatService.GetAllChatsWithLastMessageAsync();
+        var chats = await _chatService.GetAllChatsWithLastMessageAsync(agentNumber);
         return Ok(chats);
     }
 
@@ -48,6 +48,7 @@ public class ChatController : ControllerBase
     [FromQuery] string? searchTerm,
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10,
+    [FromQuery] string? agentNumber = "",
     [FromQuery] string? order = "desc",
     [FromQuery] DateTime? startDate = null,
     [FromQuery] DateTime? endDate = null,
@@ -73,6 +74,7 @@ public class ChatController : ControllerBase
                 searchTerm,
                 pageNumber,
                 pageSize,
+                agentNumber,
                 order,
                 startDate,
                 endDate,
@@ -114,9 +116,9 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet("{id}/last-message-seen")]
-    public async Task<ActionResult<bool?>> GetLastMessageIsSeen(string id)
+    public async Task<ActionResult<bool?>> GetLastMessageIsSeen(string id, [FromQuery] string agentNumber)
     {
-        var res = await _chatService.GetLastMessageIsSeenAsync(id);
+        var res = await _chatService.GetLastMessageIsSeenAsync(id, agentNumber);
         if (res == null) return false;
 
         return res;
@@ -192,6 +194,61 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpPut("{id}/name/{name}")]
+    public async Task<IActionResult> UpdateClientName(string id, string name)
+    {
+        try
+        {
+            await _chatService.UpdateChatClientNameAsync(id, name);
+            return Ok("Nome do clinete alterado.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPut("{id}/email/{newThing}")]
+    public async Task<IActionResult> UpdateClientEmail(string id, string newThing)
+    {
+        try
+        {
+            await _chatService.UpdateChatClientEmailAsync(id, newThing);
+            return Ok("Email do clinete alterado.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPut("{id}/cpfCnpj/{newThing}")]
+    public async Task<IActionResult> UpdateClientCpfCnpj(string id, string newThing)
+    {
+        try
+        {
+            await _chatService.UpdateChatClientCpfCnpjAsync(id, newThing);
+            return Ok("Cpf/Cnpj do clinete alterado.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            return NotFound();
+        }
+    }
+
+
     [HttpPut("custom-prompt")]
     public async Task<IActionResult> UpdateCustomPrompt([FromBody] UpdateCustomPromptDto dto)
     {
@@ -211,11 +268,11 @@ public class ChatController : ControllerBase
     }
 
     [HttpPut("seen")]
-    public async Task<IActionResult> UpdateSeen([FromQuery] string id)
+    public async Task<IActionResult> UpdateSeen([FromQuery] string id,[FromQuery] string agentNumber)
     {
         try
         {
-            await _chatService.UpdateChatLastMessageIsSeenAsync(id);
+            await _chatService.UpdateChatLastMessageIsSeenAsync(id, agentNumber);
             return Ok("Mensagem colocado como vista.");
         }
         catch (UnauthorizedAccessException)
@@ -243,24 +300,24 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet("export/excel")]
-    public async Task<IActionResult> ExportToExcel()
+    public async Task<IActionResult> ExportToExcel([FromQuery] string agentNumber)
     {
-        var content = await _exportService.ExportChatsToExcelAsync();
+        var content = await _exportService.ExportChatsToExcelAsync(agentNumber);
         return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "tabela-clientes.xlsx");
     }
 
     [HttpGet("export/pdf")]
-    public async Task<IActionResult> ExportToPdf()
+    public async Task<IActionResult> ExportToPdf([FromQuery] string agentNumber)
     {
-        var content = await _exportService.ExportChatsToPdfAsync();
+        var content = await _exportService.ExportChatsToPdfAsync(agentNumber);
         return File(content, "application/pdf", "tabela-clientes.pdf");
     }
 
 
     [HttpGet("export/excel/advanced")]
-    public async Task<IActionResult> ExportToExcelAdvanced()
+    public async Task<IActionResult> ExportToExcelAdvanced([FromQuery] string agentNumber)
     {
-        var content = await _exportService.ExportChatsToExcelAdvancedAsync();
+        var content = await _exportService.ExportChatsToExcelAdvancedAsync(agentNumber);
         return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "clientes-avancado.xlsx");
     }
 

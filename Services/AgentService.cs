@@ -24,6 +24,18 @@ public class AgentService : IAgentService
         return agent?.EnterpriseId;
     }
 
+    public async Task<Agent> CreateAgentAsync(Agent agent)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        agent.DateCreated = DateTime.Now;
+        agent.EnterpriseId = enterpriseId;
+        _context.Agents.Add(agent);
+        await _context.SaveChangesAsync();
+        return agent;
+    }
+
+
     public async Task<Agent?> GetAgent(int enterprise_id)
     {
         var agent = await _context.Agents
@@ -33,35 +45,56 @@ public class AgentService : IAgentService
         return agent;
     }
 
-    public async Task<string?> GetPrompt()
+        public async Task<Agent?> GetAgentById(int id)
+    {
+        var agent = await _context.Agents
+            .Where(a => a.Id == id)
+            .FirstOrDefaultAsync();
+
+        return agent;
+    }
+
+    public async Task<List<Agent>?> GetAgentsByEnterpriseId()
+    {
+
+        var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
+
+        var agents = await _context.Agents
+            .Where(a => a.EnterpriseId == enterpriseId)
+            .ToListAsync();
+
+        return agents;
+    }
+
+
+    public async Task<string?> GetPrompt(string agentNumber)
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
         var agent = await _context.Agents
-            .Where(a => a.EnterpriseId == enterpriseId)
+            .Where(a => a.EnterpriseId == enterpriseId && a.Number == agentNumber)
             .FirstOrDefaultAsync();
 
         return agent?.Prompt;
     }
 
-    public async Task<bool> UpdatePrompt(string newPrompt)
+    public async Task<bool> UpdatePrompt(string newPrompt, string agentNumber)
+{
+    var agent = await _context.Agents
+        .Where(a => a.Number == agentNumber)
+        .FirstOrDefaultAsync();
+
+    if (agent == null)
     {
-        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
-        var agent = await _context.Agents
-            .Where(a => a.EnterpriseId == enterpriseId)
-            .FirstOrDefaultAsync();
-
-        if (agent == null)
-        {
-            return false;
-        }
-
-        agent.Prompt = newPrompt;
-        _context.Agents.Update(agent);
-        await _context.SaveChangesAsync();
-
-        return true;
+        return false;
     }
+
+    agent.Prompt = newPrompt;
+    _context.Agents.Update(agent);
+    await _context.SaveChangesAsync();
+
+    return true;
+}
 
     public async Task<string?> GetPrompt1(string agentNumber)
     {

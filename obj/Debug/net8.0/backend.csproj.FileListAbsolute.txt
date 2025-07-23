@@ -314,3 +314,4 @@
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/de/PdfSharpCore.resources.dll
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Newtonsoft.Json.dll
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/BouncyCastle.Crypto.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/ba.json

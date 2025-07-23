@@ -14,9 +14,9 @@ using iText.Kernel.Font;
 
 public interface IChatExportService
 {
-    Task<byte[]> ExportChatsToExcelAsync();
-    Task<byte[]> ExportChatsToExcelAdvancedAsync(); // Novo método
-    Task<byte[]> ExportChatsToPdfAsync();
+    Task<byte[]> ExportChatsToExcelAsync(string agentNumber);
+    Task<byte[]> ExportChatsToExcelAdvancedAsync(string agentNumber); // Novo método
+    Task<byte[]> ExportChatsToPdfAsync(string agentNumber);
 }
 
 public class ChatExportService : IChatExportService
@@ -30,9 +30,9 @@ public class ChatExportService : IChatExportService
         _pdfConverter = pdfConverter;
     }
 
-    public async Task<byte[]> ExportChatsToExcelAdvancedAsync()
+    public async Task<byte[]> ExportChatsToExcelAdvancedAsync(string agentNumber)
     {
-        var chats = await _chatService.GetAllChatsWithLastMessageAsync();
+        var chats = await _chatService.GetAllChatsWithLastMessageAsync(agentNumber);
 
         using (var workbook = new XLWorkbook())
         {
@@ -93,9 +93,9 @@ public class ChatExportService : IChatExportService
         }
     }
 
-    public async Task<byte[]> ExportChatsToExcelAsync()
+    public async Task<byte[]> ExportChatsToExcelAsync(string agentNumber)
     {
-        var chats = await _chatService.GetAllChatsWithLastMessageAsync();
+        var chats = await _chatService.GetAllChatsWithLastMessageAsync(agentNumber);
         var csv = new StringBuilder();
 
         // Cabeçalhos
@@ -117,9 +117,9 @@ public class ChatExportService : IChatExportService
         return Encoding.UTF8.GetBytes(csv.ToString());
     }
 
-    public async Task<byte[]> ExportChatsToPdfAsync()
+    public async Task<byte[]> ExportChatsToPdfAsync(string agentNumber)
     {
-        var chats = await _chatService.GetAllChatsWithLastMessageAsync();
+        var chats = await _chatService.GetAllChatsWithLastMessageAsync(agentNumber);
 
         using (var ms = new MemoryStream())
         {

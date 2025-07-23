@@ -1,0 +1,20 @@
+{
+    "ConnectionStrings": {
+      "DefaultConnection": "Host=database-1.c7q6aw08mco1.us-east-2.rds.amazonaws.com;Port=5432;Database=whitelabelia;Username=postgres;Password=Alanljpa1;SSL Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=30;Pooling=true;" },
+    "Logging": {
+      "LogLevel": {
+        "Default": "Information",
+        "Microsoft.AspNetCore": "Warning"
+      }
+    },
+    "AllowedHosts": "*",
+    "Jwt": {
+      "SecretKey": "SuaChaveSecretaMuitoSeguraAqui123456",
+      "Issuer": "myapp",                  
+      "Audience": "myappusers"            
+    },
+    "MercadoPago": {
+      "AccessToken": "APP_USR-1375204330701481-073021-97be99fab97882aa55c07ffe1e81ec7e-246170016",
+      "Timeout": 5000
+    }
+  }
