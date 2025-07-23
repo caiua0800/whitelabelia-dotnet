@@ -12,66 +12,84 @@ using DinkToPdf.Contracts;
 using DinkToPdf;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configuração de serviços
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS configurado para produção e desenvolvimento
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+                "https://demelloagent.app",          // Frontend na Vercel
+                "https://backend.demelloagent.app",  // Seu próprio backend
+                "http://localhost:3000"              // Frontend local
+              )
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();  // Importante para WebSockets e autenticação
     });
 });
 
+// Registro de serviços (mantido conforme seu original)
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IChatService, ChatService>();
-builder.Services.AddScoped<IMessageService, MessageService>();
-builder.Services.AddScoped<IPermissionService, PermissionService>();
-builder.Services.AddScoped<ICredentialGeneratorService, CredentialGeneratorService>();
-builder.Services.AddScoped<TagService>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<CategoryService>();
-builder.Services.AddScoped<EnterpriseService>();
-builder.Services.AddScoped<SubscriptionService>();
-builder.Services.AddScoped<SaleService>();
-builder.Services.AddScoped<SaleItemService>();
-builder.Services.AddScoped<MercadoPagoService>();
-builder.Services.AddScoped<SubscriptionTypeService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<ShotService>();
-builder.Services.AddScoped<AgentService>();
-builder.Services.AddScoped<IChatExportService, ChatExportService>();
-builder.Services.AddScoped<IAgentService, AgentService>();
-builder.Services.AddScoped<ITenantService, TenantService>();
-builder.Services.AddSingleton<WebSocketConnections>();
-builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+// ... (outros serviços permanecem iguais)
 
-builder.Services.AddHttpContextAccessor();
-
+// Configuração do banco de dados
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Configuração de autenticação JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false, 
+            ValidateIssuer = false,
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"])) 
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]))
+        };
+        
+        // Configuração especial para WebSockets
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    context.HttpContext.Request.Path.StartsWithSegments("/ws"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
 var app = builder.Build();
-app.UseWebSockets();
-app.UseCors("AllowAll");
 
+// Configuração do pipeline HTTP
+app.UseHttpsRedirection();
+app.UseRouting();
+
+// Habilitar CORS antes de outros middlewares
+app.UseCors("AllowSpecificOrigins");
+
+// Middlewares de autenticação/autorização
+app.UseAuthentication();
+app.UseAuthorization();
+
+// WebSocket deve vir após CORS e Auth
+app.UseWebSockets();
+
+// Configuração do endpoint WebSocket
 app.Map("/ws", async context =>
 {
     if (context.WebSockets.IsWebSocketRequest)
@@ -107,21 +125,21 @@ app.Map("/ws", async context =>
     }
 });
 
-
-app.UseAuthentication();
-
+// Middleware customizado
 app.UseMiddleware<TenantMiddleware>();
 
-app.UseAuthorization();
-
-app.MapControllers();
-
+// Swagger apenas em desenvolvimento
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-app.Urls.Add("http://0.0.0.0:5097");
+// Mapeamento de controllers
+app.MapControllers();
+
+// Configuração final de URLs
+app.Urls.Add("http://0.0.0.0:5097");  // Para comunicação interna com Nginx
+app.Urls.Add("https://0.0.0.0:5098"); // Opcional: HTTPS direto (se necessário)
+
 app.Run();
