@@ -34,10 +34,29 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Registro de serviços (mantido conforme seu original)
+
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IChatService, ChatService>();
-// ... (outros serviços permanecem iguais)
+builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<ICredentialGeneratorService, CredentialGeneratorService>();
+builder.Services.AddScoped<TagService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<EnterpriseService>();
+builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<SaleItemService>();
+builder.Services.AddScoped<MercadoPagoService>();
+builder.Services.AddScoped<SubscriptionTypeService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ShotService>();
+builder.Services.AddScoped<AgentService>();
+builder.Services.AddScoped<IChatExportService, ChatExportService>();
+builder.Services.AddScoped<IAgentService, AgentService>();
+builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddSingleton<WebSocketConnections>();
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 // Configuração do banco de dados
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
