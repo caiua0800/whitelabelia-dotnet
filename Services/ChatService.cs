@@ -126,6 +126,8 @@ public class ChatService : IChatService
         //     query = query.Where(c => c.LastMessages != null && c.LastMessages.Count > 0);
         // }
 
+        Console.WriteLine($"withMessage: withMessage: {withMessage}");
+
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.ToLower();
@@ -152,27 +154,31 @@ public class ChatService : IChatService
 
         var totalCount = await query.CountAsync();
 
-        // Materialize the chats first to avoid EF Core translation issues with complex sorting
         var chatsList = await query.ToListAsync();
 
-        // var sortedChats = order?.ToLower() switch
-        // {
-        //     "asc" => chatsList.OrderBy(c =>
-        //         c.LastMessages
-        //             .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-        //             .Select(m => m.DateCreated)
-        //             .DefaultIfEmpty(DateTime.MinValue)
-        //             .Max()),
-        //     _ => chatsList.OrderByDescending(c =>
-        //         c.LastMessages
-        //             .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-        //             .Select(m => m.DateCreated)
-        //             .DefaultIfEmpty(DateTime.MinValue)
-        //             .Max())
-        // };
-
+        var sortedChats = order?.ToLower() switch
+        {
+            "asc" => chatsList
+                .OrderBy(c => c.LastMessages == null || !c.LastMessages.Any()) // Chats sem mensagens vão para o final
+                .ThenBy(c =>
+                    c.LastMessages?
+                        .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
+                        .Select(m => m.DateCreated)
+                        .DefaultIfEmpty(DateTime.MinValue)
+                        .Max() ?? DateTime.MinValue
+                ),
+            _ => chatsList
+                .OrderBy(c => c.LastMessages == null || !c.LastMessages.Any()) // Chats sem mensagens vão para o final
+                .ThenByDescending(c =>
+                    c.LastMessages?
+                        .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
+                        .Select(m => m.DateCreated)
+                        .DefaultIfEmpty(DateTime.MinValue)
+                        .Max() ?? DateTime.MinValue
+                )
+        };
         // Apply pagination
-        var pagedChats = chatsList
+        var pagedChats = sortedChats
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToList();
