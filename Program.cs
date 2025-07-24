@@ -18,14 +18,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configuração CORS para permitir qualquer origem
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("AllowAll", policy =>
+//     {
+//         policy.AllowAnyOrigin()  // Permite qualquer origem
+//               .AllowAnyMethod()  // Permite todos os métodos HTTP
+//               .AllowAnyHeader(); // Permite todos os headers
+//     });
+// });
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()  // Permite qualquer origem
-              .AllowAnyMethod()  // Permite todos os métodos HTTP
-              .AllowAnyHeader(); // Permite todos os headers
+        policy.WithOrigins("http://localhost:3001")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials(); 
     });
 });
 
