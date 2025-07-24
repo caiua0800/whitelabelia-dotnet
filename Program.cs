@@ -18,14 +18,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configuração CORS para permitir qualquer origem
+// Configuração CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowSpecificOrigin", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3001")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -72,7 +73,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]))
         };
         
-        // Configuração especial para WebSockets
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -90,21 +90,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
+// Middleware para headers CORS
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Add("Access-Control-Allow-Origin", "http://localhost:3001");
+    context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+    await next();
+});
+
 // Configuração do pipeline HTTP
 app.UseHttpsRedirection();
 app.UseRouting();
 
-// Habilitar CORS antes de outros middlewares
-app.UseCors("AllowAll"); // Alterado para usar a política "AllowAll"
+// Habilitar CORS
+app.UseCors("AllowSpecificOrigin");
 
 // Middlewares de autenticação/autorização
 app.UseAuthentication();
 app.UseAuthorization();
 
-// WebSocket deve vir após CORS e Auth
+// WebSocket
 app.UseWebSockets();
 
-// Configuração do endpoint WebSocket
 app.Map("/ws", async context =>
 {
     if (context.WebSockets.IsWebSocketRequest)
