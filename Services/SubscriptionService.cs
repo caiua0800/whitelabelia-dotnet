@@ -84,11 +84,16 @@ public class SubscriptionService
         var existingSubscriptionType = await _subscriptionTypeService.GetSubscriptionTypeById((int)subscription.SubscriptionTypeId);
 
         if (existingSubscriptionType == null)
-            return null;
+            throw new ArgumentException("SubscriptionType não encontrado");
 
         subscription.AvaliableShots = existingSubscriptionType.ShotsQtt;
         subscription.AvaliableStartChats = existingSubscriptionType.StartChatsQtt;
         subscription.AvaliableUsers = existingSubscriptionType.UsersQtt;
+
+        if (existingSubscriptionType.Duration.HasValue)
+        {
+            subscription.ExpirationDate = DateTime.Now.AddDays(existingSubscriptionType.Duration.Value);
+        }
 
         _context.Subscriptions.Add(subscription);
         await _context.SaveChangesAsync();
@@ -109,14 +114,14 @@ public class SubscriptionService
         }
 
         var existingSubscriptionType = await _subscriptionTypeService
-            .GetSubscriptionTypeById((int)subscription.SubscriptionTypeId );
+            .GetSubscriptionTypeById((int)subscription.SubscriptionTypeId);
 
         if (existingSubscriptionType == null)
         {
             throw new KeyNotFoundException("Subscription type not found");
         }
 
-        subscription.Status = 2; 
+        subscription.Status = 2;
         subscription.AvaliableShots = existingSubscriptionType.ShotsQtt;
         subscription.AvaliableStartChats = existingSubscriptionType.StartChatsQtt;
         subscription.DatePaid = DateTime.Now;
