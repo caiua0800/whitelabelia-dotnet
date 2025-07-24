@@ -278,6 +278,7 @@ public class ShotService
             recipients = clients,
             model_name = "start_chat_leads_1", // Nome do modelo corrigido
             model_language = "pt_BR",
+            agentNumber
         };
 
         try

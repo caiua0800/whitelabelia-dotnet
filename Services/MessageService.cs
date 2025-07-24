@@ -97,7 +97,6 @@ public class MessageService : IMessageService
 
         if (existingLastMessage != null)
         {
-            // Atualiza a mensagem existente
             existingLastMessage.Text = message.Text;
             existingLastMessage.IsSeen = false;
             existingLastMessage.IsReply = message.IsReply ?? false;

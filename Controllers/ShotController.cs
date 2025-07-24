@@ -80,8 +80,6 @@ public class ShotController : ControllerBase
     {
         try
         {
-            Console.WriteLine($"agentNumber 2: {agentNumber}");
-
             await _shotService.SendShotStartingLeads(id, agentNumber, clients);
             return Ok("Mensagens Enviadas com sucesso");
         }
