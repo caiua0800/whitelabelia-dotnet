@@ -207,7 +207,7 @@ public class ShotService
             {
                 using (var httpClient = new HttpClient())
                 {
-                    var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-multiple-model", requestData);
+                    var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-multiple-model", requestData);
                     Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                     response.EnsureSuccessStatusCode();
                 }
@@ -279,14 +279,13 @@ public class ShotService
             recipients = clients,
             model_name = "start_chat_leads_1", // Nome do modelo corrigido
             model_language = "pt_BR",
-            agentNumber
         };
 
         try
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-multiple-model-start-chat-leads", requestData);
+                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-multiple-model-start-chat-leads", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }
@@ -342,7 +341,7 @@ public class ShotService
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-start-chat", requestData);
+                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-start-chat", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }
@@ -375,7 +374,7 @@ public class ShotService
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("http://localhost:3007/send-start-chat-leads", requestData);
+                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-start-chat-leads", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }
