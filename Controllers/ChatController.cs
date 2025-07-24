@@ -194,6 +194,24 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpPut("status/all")]
+    public async Task<IActionResult> UpdateAllChatStatus([FromQuery] int newStatus)
+    {
+        try
+        {
+            await _chatService.UpdateAllChatStatusAsync(newStatus);
+            return Ok("Status alterado.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception)
+        {
+            return NotFound();
+        }
+    }
+
     [HttpPut("{id}/name/{name}")]
     public async Task<IActionResult> UpdateClientName(string id, string name)
     {
@@ -268,7 +286,7 @@ public class ChatController : ControllerBase
     }
 
     [HttpPut("seen")]
-    public async Task<IActionResult> UpdateSeen([FromQuery] string id,[FromQuery] string agentNumber)
+    public async Task<IActionResult> UpdateSeen([FromQuery] string id, [FromQuery] string agentNumber)
     {
         try
         {

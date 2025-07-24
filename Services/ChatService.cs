@@ -426,6 +426,26 @@ public class ChatService : IChatService
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateAllChatStatusAsync(int newStatus)
+    {
+        var chats = await _context.Chats
+            .Where(c => c.EnterpriseId == _tenantService.GetCurrentEnterpriseId()) 
+            .ToListAsync();
+
+        if (chats == null || !chats.Any())
+        {
+            throw new UnauthorizedAccessException("Nenhum chat encontrado para atualização");
+        }
+
+        foreach (var chat in chats)
+        {
+            chat.Status = newStatus;
+            _context.Entry(chat).State = EntityState.Modified;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
     public async Task UpdateChatClientNameAsync(string id, string newName)
     {
         var chat = await _context.Chats
