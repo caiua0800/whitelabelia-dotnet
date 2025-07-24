@@ -64,13 +64,6 @@ public class MessageService : IMessageService
     public async Task<Message> SendMessageAsync(Message message)
     {
         message.IsReply = message.IsReply ?? false;
-
-        // var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
-
-        // if (!enterpriseId.HasValue && !string.IsNullOrEmpty(message.AgentNumber))
-        // {
-        //     enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(message.AgentNumber);
-        // }
         var enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(message.AgentNumber);
         Console.WriteLine($"message.AgentNumber do sen {message.AgentNumber}");
         if (!enterpriseId.HasValue)
@@ -99,24 +92,38 @@ public class MessageService : IMessageService
         _context.Messages.Add(message);
         await _context.SaveChangesAsync();
 
-        // Atualiza a lista de últimas mensagens
-        chat.LastMessages.Add(new LastMessageDto
-        {
-            AgentNumber = message.AgentNumber,
-            Text = message.Text,
-            IsSeen = false,
-            IsReply = message.IsReply ?? false,
-            DateCreated = DateTime.UtcNow
-        });
+        // Atualiza ou adiciona a última mensagem
+        var existingLastMessage = chat.LastMessages?.FirstOrDefault(m => m.AgentNumber == message.AgentNumber);
 
-        // Mantém apenas as últimas N mensagens (ex: 5)
-        if (chat.LastMessages.Count > 5)
+        if (existingLastMessage != null)
         {
-            chat.LastMessages = chat.LastMessages
-                .OrderByDescending(m => m.DateCreated)
-                .Take(5)
-                .ToList();
+            // Atualiza a mensagem existente
+            existingLastMessage.Text = message.Text;
+            existingLastMessage.IsSeen = false;
+            existingLastMessage.IsReply = message.IsReply ?? false;
+            existingLastMessage.DateCreated = DateTime.UtcNow;
         }
+        else
+        {
+            // Adiciona nova mensagem se não existir para este AgentNumber
+            chat.LastMessages ??= new List<LastMessageDto>();
+            chat.LastMessages.Add(new LastMessageDto
+            {
+                AgentNumber = message.AgentNumber,
+                Text = message.Text,
+                IsSeen = false,
+                IsReply = message.IsReply ?? false,
+                DateCreated = DateTime.UtcNow
+            });
+        }
+
+        // Mantém apenas as últimas N mensagens (ex: 5) por AgentNumber
+        chat.LastMessages = chat.LastMessages
+            .GroupBy(m => m.AgentNumber)
+            .SelectMany(g => g.OrderByDescending(m => m.DateCreated).Take(1))
+            .OrderByDescending(m => m.DateCreated)
+            .Take(5)
+            .ToList();
 
         await _chatService.UpdateChatAsync(chat);
 
