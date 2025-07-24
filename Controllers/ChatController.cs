@@ -55,7 +55,6 @@ public class ChatController : ControllerBase
     [FromQuery] string? tagIds = null,
     [FromQuery] bool? withMessage = false) // Agora recebe como string
     {
-        Console.WriteLine($"withMessage: {withMessage}");
         try
         {
             List<int> tagIdsList = new List<int>();

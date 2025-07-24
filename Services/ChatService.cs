@@ -121,11 +121,10 @@ public class ChatService : IChatService
             .Where(c => c.EnterpriseId == enterpriseId)
             .AsQueryable();
 
-        // Filter for chats with messages first
-        if(withMessage !=null && withMessage.HasValue)
-        {
-        query = query.Where(c => c.LastMessages != null && c.LastMessages.Count > 0);
-        }
+        // if (withMessage != null && withMessage != false)
+        // {
+        //     query = query.Where(c => c.LastMessages != null && c.LastMessages.Count > 0);
+        // }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -156,25 +155,24 @@ public class ChatService : IChatService
         // Materialize the chats first to avoid EF Core translation issues with complex sorting
         var chatsList = await query.ToListAsync();
 
-        // Apply sorting in memory
-        var sortedChats = order?.ToLower() switch
-        {
-            "asc" => chatsList.OrderBy(c =>
-                c.LastMessages
-                    .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-                    .Select(m => m.DateCreated)
-                    .DefaultIfEmpty(DateTime.MinValue)
-                    .Max()),
-            _ => chatsList.OrderByDescending(c =>
-                c.LastMessages
-                    .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-                    .Select(m => m.DateCreated)
-                    .DefaultIfEmpty(DateTime.MinValue)
-                    .Max())
-        };
+        // var sortedChats = order?.ToLower() switch
+        // {
+        //     "asc" => chatsList.OrderBy(c =>
+        //         c.LastMessages
+        //             .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
+        //             .Select(m => m.DateCreated)
+        //             .DefaultIfEmpty(DateTime.MinValue)
+        //             .Max()),
+        //     _ => chatsList.OrderByDescending(c =>
+        //         c.LastMessages
+        //             .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
+        //             .Select(m => m.DateCreated)
+        //             .DefaultIfEmpty(DateTime.MinValue)
+        //             .Max())
+        // };
 
         // Apply pagination
-        var pagedChats = sortedChats
+        var pagedChats = chatsList
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToList();
@@ -424,7 +422,7 @@ public class ChatService : IChatService
     public async Task UpdateAllChatStatusAsync(int newStatus)
     {
         var chats = await _context.Chats
-            .Where(c => c.EnterpriseId == _tenantService.GetCurrentEnterpriseId()) 
+            .Where(c => c.EnterpriseId == _tenantService.GetCurrentEnterpriseId())
             .ToListAsync();
 
         if (chats == null || !chats.Any())
