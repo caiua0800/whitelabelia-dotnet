@@ -122,7 +122,10 @@ public class ChatService : IChatService
             .AsQueryable();
 
         // Filter for chats with messages first
+        if(withMessage !=null && withMessage.HasValue)
+        {
         query = query.Where(c => c.LastMessages != null && c.LastMessages.Count > 0);
+        }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -366,14 +369,6 @@ public class ChatService : IChatService
     public async Task<Chat> UpdateChatAsync(Chat chat)
     {
         Console.WriteLine($"Chat recebido para atualização: {JsonSerializer.Serialize(chat)}");
-
-        // var enterpriseId = _tenantService.TryGetCurrentEnterpriseId();
-
-        // if (!enterpriseId.HasValue && !string.IsNullOrEmpty(chat.AgentNumber))
-        // {
-        //     Console.WriteLine("Obtendo EnterpriseId pelo número do agente");
-        //     enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(chat.AgentNumber);
-        // }
 
         var enterpriseId = await _agentService.GetEnterpriseIdByAgentNumberAsync(chat.AgentNumber);
 
