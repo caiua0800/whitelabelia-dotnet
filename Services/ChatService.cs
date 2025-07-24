@@ -120,7 +120,7 @@ public class ChatService : IChatService
         // Primeiro obtemos os chats sem filtrar por LastMessages
         var query = _context.Chats
             .Where(c => c.EnterpriseId == enterpriseId)
-            .AsEnumerable(); // Isso força a execução no cliente
+            .AsQueryable();
 
         // Agora podemos usar métodos LINQ to Objects
         if (withMessage.HasValue && withMessage.Value)
