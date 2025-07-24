@@ -117,11 +117,12 @@ public class ChatService : IChatService
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
+        // Primeiro obtemos os chats sem filtrar por LastMessages
         var query = _context.Chats
-        .Where(c => c.EnterpriseId == enterpriseId)
-        .AsQueryable();
+            .Where(c => c.EnterpriseId == enterpriseId)
+            .AsEnumerable(); 
 
-        // Aplique os filtros antes de materializar a query
+        // Agora podemos usar métodos LINQ to Objects
         if (withMessage.HasValue && withMessage.Value)
         {
             query = query.Where(c =>
@@ -133,7 +134,7 @@ public class ChatService : IChatService
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = $"%{searchTerm.ToLower()}%";
+            var term = $"%{RemoveAccents(searchTerm.ToLower())}%";
             query = query.Where(c =>
                 (c.ClientNameNormalized != null && EF.Functions.ILike(c.ClientNameNormalized, term)) ||
                 EF.Functions.ILike(c.Id, term));
@@ -150,32 +151,29 @@ public class ChatService : IChatService
             query = query.Where(c => c.DateCreated < endDateInclusive);
         }
 
+        // Filtro por tags
         if (tagIds != null && tagIds.Any())
         {
             query = query.Where(c => c.Tags != null && tagIds.All(tagId => c.Tags.Contains(tagId)));
         }
 
-        // Primeiro obtenha a contagem total (ainda como IQueryable)
-        var totalCount = await query.CountAsync();
+        var totalCount = query.Count();
 
-        // Aplique a ordenação
+        // Ordenação modificada para considerar agentNumber null
         query = order?.ToLower() switch
         {
             "asc" => query.OrderBy(c =>
-                c.LastMessages
-                    .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-                    .Max(m => (DateTime?)m.DateCreated) ?? DateTime.MinValue),
+                c.LastMessages?.LastOrDefault(m =>
+                    string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)?.DateCreated ?? DateTime.MinValue),
             _ => query.OrderByDescending(c =>
-                c.LastMessages
-                    .Where(m => string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)
-                    .Max(m => (DateTime?)m.DateCreated) ?? DateTime.MinValue)
+                c.LastMessages?.LastOrDefault(m =>
+                    string.IsNullOrEmpty(agentNumber) || m.AgentNumber == agentNumber)?.DateCreated ?? DateTime.MinValue)
         };
 
-        // Aplique a paginação e materialize apenas os resultados necessários
-        var pagedChats = await query
+        var pagedChats = query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToList();
 
         var chatDtos = new List<ChatDto>();
         foreach (var chat in pagedChats)
