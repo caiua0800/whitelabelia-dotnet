@@ -20,6 +20,19 @@ public class WebSocketConnections
         _connections.TryRemove(connectionId, out _);
     }
 
+    public async Task SendAsync(string connectionId, string message)
+    {
+        if (_connections.TryGetValue(connectionId, out var socket))
+        {
+            var bytes = Encoding.UTF8.GetBytes(message);
+            await socket.SendAsync(
+                new ArraySegment<byte>(bytes),
+                WebSocketMessageType.Text,
+                true,
+                CancellationToken.None);
+        }
+    }
+
     public async Task BroadcastAsync(string message)
     {
         foreach (var (_, socket) in _connections)

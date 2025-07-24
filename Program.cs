@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Cors;
 using System.Net.WebSockets;
 using DinkToPdf.Contracts;
 using DinkToPdf;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,21 +19,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// builder.Services.AddCors(options =>
-// {
-//     options.AddPolicy("AllowAll", policy =>
-//     {
-//         policy.AllowAnyOrigin()  // Permite qualquer origem
-//               .AllowAnyMethod()  // Permite todos os métodos HTTP
-//               .AllowAnyHeader(); // Permite todos os headers
-//     });
-// });
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3001")
+        policy.WithOrigins("http://localhost:3001",
+        "https://sistema.demelloagent.app")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials(); 
@@ -111,10 +104,22 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// WebSocket deve vir após CORS e Auth
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/ws"))
+    {
+        // Remove o prefixo "Bearer " se existir
+        var accessToken = context.Request.Query["access_token"];
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            context.Request.Headers["Authorization"] = $"Bearer {accessToken}";
+        }
+    }
+    await next();
+});
+
 app.UseWebSockets();
 
-// Configuração do endpoint WebSocket
 app.Map("/ws", async context =>
 {
     if (context.WebSockets.IsWebSocketRequest)
@@ -122,26 +127,32 @@ app.Map("/ws", async context =>
         using var ws = await context.WebSockets.AcceptWebSocketAsync();
         var buffer = new byte[1024 * 4];
         
-        var webSocketConnections = context.RequestServices.GetRequiredService<WebSocketConnections>();
-        var connectionId = webSocketConnections.AddConnection(ws);
+        var connections = context.RequestServices.GetRequiredService<WebSocketConnections>();
+        var connectionId = connections.AddConnection(ws);
 
         try
         {
+            // Envia uma mensagem de confirmação imediatamente
+            await connections.SendAsync(connectionId, 
+                JsonSerializer.Serialize(new { type = "connection_established" }));
+
             while (ws.State == WebSocketState.Open)
             {
-                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), 
+                    CancellationToken.None);
                 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
-                    webSocketConnections.RemoveConnection(connectionId);
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, 
+                        null, CancellationToken.None);
+                    connections.RemoveConnection(connectionId);
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erro WebSocket: {ex.Message}");
-            webSocketConnections.RemoveConnection(connectionId);
+            Console.WriteLine($"WebSocket error: {ex.Message}");
+            connections.RemoveConnection(connectionId);
         }
     }
     else
