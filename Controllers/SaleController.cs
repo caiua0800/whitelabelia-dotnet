@@ -91,12 +91,11 @@ public class SaleController : ControllerBase
 
             var createdSale = await _saleService.CreateSaleAsync(createSaleDto, (int)enterpriseId);
 
-            // Modificado: Inclui enterpriseId no DTO de retorno
             var result = new SaleWithProductsDto(
                 createdSale.Sale,
                 createdSale.Products,
-                createdSale.Payment,
-                enterpriseId // Adiciona o enterpriseId aqui
+                createdSale.PaymentInfo,
+                enterpriseId
             );
 
             return CreatedAtAction(nameof(GetById), new { id = createdSale.Sale.Id }, result);

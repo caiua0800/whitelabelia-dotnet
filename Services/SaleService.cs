@@ -38,6 +38,55 @@ public class SaleService
             .ToListAsync();
     }
 
+    // public async Task<SaleWithProductsDto> CreateSaleAsync(CreateSaleDto createSaleDto, int enterpriseId)
+    // {
+    //     // var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+    //     var sale = createSaleDto.Sale;
+
+    //     sale.EnterpriseId = enterpriseId;
+    //     Console.WriteLine($"sale.EnterpriseId: {sale.EnterpriseId}");
+
+    //     if (sale.SaleItems != null)
+    //     {
+    //         foreach (var item in sale.SaleItems)
+    //         {
+    //             item.EnterpriseId = enterpriseId;
+
+    //             var product = await _productService.GetProductById2(item.ProductId);
+    //             item.ProductUnityPrice = product.UnityPrice;
+    //         }
+    //     }
+
+    //     sale.Description = "Venda de produtos";
+    //     sale.Status = 1;
+    //     sale.TotalAmount = await _saleItemService.CalculateTotalPrice(sale.SaleItems);
+    //     sale.TotalAmountReceivable = await _saleItemService.CalculateTotalPriceReceivable(sale.SaleItems);
+    //     sale.Discount = (sale.TotalAmountReceivable / sale.TotalAmount) - 1;
+    //     sale.DateCreated = DateTime.Now;
+
+    //     var request = new PixPaymentRequest((double)sale.TotalAmountReceivable,
+    //         "Compra de produtos",
+    //         createSaleDto.Client.Email,
+    //         "CPF",
+    //         createSaleDto.Client.Number);
+
+    //     var paymentTicket = await _mercadoPagoService.CreatePixPayment(request);
+    //     sale.PaymentId = paymentTicket.Id;
+
+
+
+    //     _context.Sales.Add(sale);
+    //     await _context.SaveChangesAsync();
+
+
+    //     var saleProducts = await _saleItemService.GetSaleProductsBySaleIdAsync2(sale.SaleItems, enterpriseId);
+    //     var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
+    //     var returnObject = new SaleWithProductsDto(sale, saleProducts, payment);
+
+    //     return returnObject;
+    // }
+
     public async Task<SaleWithProductsDto> CreateSaleAsync(CreateSaleDto createSaleDto, int enterpriseId)
     {
         // var enterpriseId = _tenantService.GetCurrentEnterpriseId();
@@ -71,10 +120,8 @@ public class SaleService
             "CPF",
             createSaleDto.Client.Number);
 
-        var paymentTicket = await _mercadoPagoService.CreatePixPayment(request);
-        sale.PaymentId = paymentTicket.Id;
-
-
+        var PaymentInfo = new PaymentInfo("Golden Brasil Minérios", "35.535.777/0001-35", "NuBank", "comercial@goldenbrasil.com.br");
+        sale.PaymentId = 0;
 
         _context.Sales.Add(sale);
         await _context.SaveChangesAsync();
@@ -82,7 +129,7 @@ public class SaleService
 
         var saleProducts = await _saleItemService.GetSaleProductsBySaleIdAsync2(sale.SaleItems, enterpriseId);
         var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
-        var returnObject = new SaleWithProductsDto(sale, saleProducts, payment);
+        var returnObject = new SaleWithProductsDto(sale, saleProducts, PaymentInfo);
 
         return returnObject;
     }
@@ -153,7 +200,9 @@ public class SaleService
             var payment = sale.PaymentId.HasValue
                 ? await _mercadoPagoService.GetPaymentByIdAsync(sale.PaymentId.Value)
                 : null;
-            result.Add(new SaleWithProductsDto(sale, saleProducts, payment));
+            var PaymentInfo = new PaymentInfo("Golden Brasil Minérios", "35.535.777/0001-35", "NuBank", "comercial@goldenbrasil.com.br");
+
+            result.Add(new SaleWithProductsDto(sale, saleProducts, PaymentInfo));
         }
 
         return new PagedResult<SaleWithProductsDto>(result, totalCount, pageNumber, pageSize);
@@ -171,8 +220,9 @@ public class SaleService
         foreach (var sale in sales)
         {
             var saleProducts = await _saleItemService.GetSaleProductsBySaleIdAsync(sale.Id);
-            var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
-            var newReturnListDto = new SaleWithProductsDto(sale, saleProducts, payment);
+            // var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
+            var PaymentInfo = new PaymentInfo("Golden Brasil Minérios", "35.535.777/0001-35", "NuBank", "comercial@goldenbrasil.com.br");
+            var newReturnListDto = new SaleWithProductsDto(sale, saleProducts, PaymentInfo);
             returnList.Add(newReturnListDto);
         }
 
@@ -194,13 +244,14 @@ public class SaleService
         var sale = await _context.Sales
             .Where(c => c.EnterpriseId == enterpriseId && c.Id == id)
             .FirstOrDefaultAsync();
-        var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
+        // var payment = await _mercadoPagoService.GetPaymentByIdAsync((long)sale.PaymentId);
 
 
         if (sale == null) return null;
+            var PaymentInfo = new PaymentInfo("Golden Brasil Minérios", "35.535.777/0001-35", "NuBank", "comercial@goldenbrasil.com.br");
 
         var saleProducts = await _saleItemService.GetSaleProductsBySaleIdAsync(sale.Id);
-        return new SaleWithProductsDto(sale, saleProducts, payment);
+        return new SaleWithProductsDto(sale, saleProducts, PaymentInfo);
     }
 
     public async Task<Sale?> UpdateSaleStatusAsync(int saleId, int newStatus)
