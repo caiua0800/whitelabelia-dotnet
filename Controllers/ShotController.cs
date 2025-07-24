@@ -63,7 +63,6 @@ public class ShotController : ControllerBase
         try
         {
             await _shotService.SendShot(id, agentNumber, clients);
-            Console.WriteLine($"agentNumber: {agentNumber}");
             return Ok("Mensagens Enviadas com sucesso");
         }
         catch (UnauthorizedAccessException ex)

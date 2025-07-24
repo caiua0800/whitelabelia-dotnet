@@ -127,7 +127,8 @@ public class ChatService : IChatService
         {
             if (string.IsNullOrEmpty(agentNumber))
             {
-                query = query.Where(c => c.LastMessages != null && c.LastMessages.Any(m => m.Text != null));
+                query = query.Where(c => c.LastMessages != null &&
+                       c.LastMessages.Any(m => m.AgentNumber == agentNumber && m.Text != null));
             }
             else
             {

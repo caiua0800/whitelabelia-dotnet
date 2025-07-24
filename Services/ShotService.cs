@@ -208,7 +208,6 @@ public class ShotService
                 using (var httpClient = new HttpClient())
                 {
                     var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-multiple-model", requestData);
-                    Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                     response.EnsureSuccessStatusCode();
                 }
 
