@@ -25,6 +25,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
     {
         policy.WithOrigins("http://localhost:3001",
+        "http://localhost:3000",
         "https://sistema.demelloagent.app")
               .AllowAnyMethod()
               .AllowAnyHeader()
@@ -41,6 +42,7 @@ builder.Services.AddScoped<ICredentialGeneratorService, CredentialGeneratorServi
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<MessageModelService>();
 builder.Services.AddScoped<EnterpriseService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<SaleService>();

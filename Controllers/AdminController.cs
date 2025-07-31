@@ -46,7 +46,6 @@ namespace backend.Controllers
         }
 
         [HttpPut("change-password/{id}")]
-        [Authorize]
         public async Task<IActionResult> ChangeAdminPassword(int id, [FromBody] ChangePasswordRequest request)
         {
             var enterpriseId = _tenantService.GetCurrentEnterpriseId();

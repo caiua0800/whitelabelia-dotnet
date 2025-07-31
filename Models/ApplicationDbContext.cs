@@ -9,6 +9,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using backend.DTOs;
+using System.Text.Json.Serialization;
 
 namespace backend.Models
 {
@@ -41,6 +42,7 @@ namespace backend.Models
         public DbSet<Sale> Sales { get; set; }
         public DbSet<SaleItem> SaleItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<MessageModel> MessageModels { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -80,6 +82,8 @@ namespace backend.Models
                 entity.ToTable("agent_prompts");
             });
 
+
+
             modelBuilder.Entity<Product>(entity =>
             {
                 entity.ToTable("products");
@@ -98,6 +102,104 @@ namespace backend.Models
             modelBuilder.Entity<Category>(entity =>
             {
                 entity.ToTable("categories");
+            });
+
+            // Add this to your OnModelCreating method in ApplicationDbContext
+            modelBuilder.Entity<MessageModel>(entity =>
+            {
+                entity.ToTable("message_models");
+
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.Id).HasColumnName("id").ValueGeneratedOnAdd();
+
+                entity.Property(m => m.Name)
+                    .HasColumnName("name")
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.Property(m => m.EnterpriseId)
+                    .HasColumnName("enterprise_id");
+
+                // Configure Header as JSONB
+                entity.Property(m => m.Header)
+                    .HasColumnName("header")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                        }),
+                        v => JsonSerializer.Deserialize<HeaderMessageModel>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }),
+                        new ValueComparer<HeaderMessageModel>(
+                            (c1, c2) => JsonSerializer.Serialize(c1, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }) == JsonSerializer.Serialize(c2, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }),
+                            c => JsonSerializer.Serialize(c, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }).GetHashCode(),
+                            c => JsonSerializer.Deserialize<HeaderMessageModel>(
+                                JsonSerializer.Serialize(c, new JsonSerializerOptions
+                                {
+                                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                }),
+                                new JsonSerializerOptions
+                                {
+                                    PropertyNameCaseInsensitive = true
+                                }))
+                    );
+
+                entity.Property(m => m.Body)
+                    .HasColumnName("body")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                        }),
+                        v => JsonSerializer.Deserialize<BodyMessageModel>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }),
+                        new ValueComparer<BodyMessageModel>(
+                            (c1, c2) => JsonSerializer.Serialize(c1, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }) == JsonSerializer.Serialize(c2, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }),
+                            c => JsonSerializer.Serialize(c, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }).GetHashCode(),
+                            c => JsonSerializer.Deserialize<BodyMessageModel>(
+                                JsonSerializer.Serialize(c, new JsonSerializerOptions
+                                {
+                                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                }),
+                                new JsonSerializerOptions
+                                {
+                                    PropertyNameCaseInsensitive = true
+                                }))
+                    );
+
+                entity.Property(m => m.DateCreated)
+                    .HasColumnName("date_created")
+                    .HasColumnType("timestamp with time zone")
+                    .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+
+                // Add query filter for multi-tenancy if needed
+                entity.HasQueryFilter(m => EF.Property<int>(m, "enterprise_id") == CurrentEnterpriseId);
             });
 
             // ===== ADMIN =====
@@ -213,78 +315,187 @@ namespace backend.Models
                 .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
             });
 
+            // modelBuilder.Entity<Shot>(entity =>
+            // {
+            //     entity.ToTable("shots");
+            //     entity.Property(c => c.EnterpriseId)
+            //         .HasColumnName("enterprise_id")
+            //         .IsRequired();
+
+            //     entity.Property(s => s.ShotFields)
+            //     .HasColumnName("shot_fields")
+            //     .HasColumnType("jsonb")
+            //     .HasConversion(
+            //         v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            //             WriteIndented = false
+            //         }),
+            //         v => JsonSerializer.Deserialize<List<ShotFields>>(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNameCaseInsensitive = true, // Adicione esta linha
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            //         }),
+            //         new ValueComparer<List<ShotFields>>(
+            //             (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+            //             c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            //             c => c.ToList()));
+
+            //     entity.Property(s => s.SentClients)
+            //     .HasColumnName("sent_clients")
+            //     .HasColumnType("jsonb")
+            //     .HasConversion(
+            //         v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            //             WriteIndented = false
+            //         }),
+            //         v => JsonSerializer.Deserialize<List<ClientShotDto>>(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNameCaseInsensitive = true,
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            //         }),
+            //         new ValueComparer<List<ClientShotDto>>(
+            //             (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+            //             c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            //             c => c.ToList()));
+
+            //     entity.Property(s => s.ShotHistory)
+            //     .HasColumnName("shot_history")
+            //     .HasColumnType("jsonb")
+            //     .HasConversion(
+            //         v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            //             WriteIndented = false
+            //         }),
+            //         v => JsonSerializer.Deserialize<List<ShotHistory>>(v, new JsonSerializerOptions
+            //         {
+            //             PropertyNameCaseInsensitive = true,
+            //             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            //         }),
+            //         new ValueComparer<List<ShotHistory>>(
+            //             (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
+            //             c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            //             c => c.ToList()));
+
+            //     entity.OwnsOne(s => s.ShotFilters, sf =>
+            //     {
+            //         sf.Property(s => s.TagFilterStatus).HasColumnName("tag_filter_status");
+            //         sf.Property(s => s.TagFilter).HasColumnName("tag_filter")
+            //             .HasColumnType("jsonb")
+            //             .HasConversion(
+            //                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+            //                 v => JsonSerializer.Deserialize<List<int>>(v, (JsonSerializerOptions?)null));
+
+            //         sf.Property(s => s.TypeFilterStatus).HasColumnName("type_filter_status");
+            //         sf.Property(s => s.TypeFilter).HasColumnName("type_filter");
+
+            //         sf.Property(s => s.SelectedClientsStatus).HasColumnName("selected_clients_status");
+            //         sf.Property(s => s.SelectedClients).HasColumnName("selected_clients")
+            //             .HasColumnType("jsonb")
+            //             .HasConversion(
+            //                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+            //                 v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null));
+            //     });
+            // });
             modelBuilder.Entity<Shot>(entity =>
             {
                 entity.ToTable("shots");
-                entity.Property(c => c.EnterpriseId)
-                    .HasColumnName("enterprise_id")
-                    .IsRequired();
+
+                entity.Property(s => s.Id).HasColumnName("id");
+                entity.Property(s => s.Status).HasColumnName("status").HasDefaultValue(1);
+                entity.Property(s => s.DateCreated)
+                    .HasColumnName("date_created")
+                    .HasColumnType("timestamp with time zone")
+                    .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+                entity.Property(s => s.ActivationDate)
+                    .HasColumnName("activation_date")
+                    .HasColumnType("timestamp with time zone");
+                entity.Property(s => s.EnterpriseId).HasColumnName("enterprise_id").IsRequired();
+                entity.Property(s => s.Name).HasColumnName("name").IsRequired();
+                entity.Property(s => s.NameNormalized).HasColumnName("name_normalized");
+                entity.Property(s => s.ModelName).HasColumnName("model_name");
+                entity.Property(s => s.MessageModelId).HasColumnName("message_model_id");
+                entity.Property(s => s.SendShotDate).HasColumnName("send_shot_date").HasColumnType("timestamp with time zone");
+                entity.Property(s => s.EndShotDate).HasColumnName("end_shot_date").HasColumnType("timestamp with time zone");
+                entity.Property(s => s.ClientsQtt).HasColumnName("clients_qtt");
 
                 entity.Property(s => s.ShotFields)
-                .HasColumnName("shot_fields")
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        WriteIndented = false
-                    }),
-                    v => JsonSerializer.Deserialize<List<ShotFields>>(v, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true, // Adicione esta linha
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    }),
-                    new ValueComparer<List<ShotFields>>(
-                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
-                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                        c => c.ToList()));
+                    .HasColumnName("shot_fields")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        v => JsonSerializer.Deserialize<List<ShotFields>>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }));
 
                 entity.Property(s => s.SentClients)
-                .HasColumnName("sent_clients")
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        WriteIndented = false
-                    }),
-                    v => JsonSerializer.Deserialize<List<ClientShotDto>>(v, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    }),
-                    new ValueComparer<List<ClientShotDto>>(
-                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
-                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                        c => c.ToList()));
+                    .HasColumnName("sent_clients")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        v => JsonSerializer.Deserialize<List<ClientShotDto>>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }));
 
                 entity.Property(s => s.ShotHistory)
-                .HasColumnName("shot_history")
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        WriteIndented = false
-                    }),
-                    v => JsonSerializer.Deserialize<List<ShotHistory>>(v, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    }),
-                    new ValueComparer<List<ShotHistory>>(
-                        (c1, c2) => c1 != null && c2 != null && c1.SequenceEqual(c2),
-                        c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                        c => c.ToList()));
+                    .HasColumnName("shot_history")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        v => JsonSerializer.Deserialize<List<ShotHistory>>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }));
 
+                // Header and Body as JSONB
+                entity.Property(s => s.Header)
+                    .HasColumnName("header")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        v => JsonSerializer.Deserialize<ItemHeaderBody>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }));
+
+                entity.Property(s => s.Body)
+                    .HasColumnName("body")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                        }),
+                        v => JsonSerializer.Deserialize<ItemHeaderBody>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }));
+
+                // Owned entity for ShotFilters
                 entity.OwnsOne(s => s.ShotFilters, sf =>
                 {
                     sf.Property(s => s.TagFilterStatus).HasColumnName("tag_filter_status");
                     sf.Property(s => s.TagFilter).HasColumnName("tag_filter")
                         .HasColumnType("jsonb")
                         .HasConversion(
-                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                            v => JsonSerializer.Deserialize<List<int>>(v, (JsonSerializerOptions?)null));
+                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                            v => JsonSerializer.Deserialize<List<int>>(v, (JsonSerializerOptions)null));
 
                     sf.Property(s => s.TypeFilterStatus).HasColumnName("type_filter_status");
                     sf.Property(s => s.TypeFilter).HasColumnName("type_filter");
@@ -293,9 +504,10 @@ namespace backend.Models
                     sf.Property(s => s.SelectedClients).HasColumnName("selected_clients")
                         .HasColumnType("jsonb")
                         .HasConversion(
-                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                            v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null));
+                            v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                            v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null));
                 });
+
             });
 
 

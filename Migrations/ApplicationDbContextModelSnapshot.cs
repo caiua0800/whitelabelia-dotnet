@@ -538,6 +538,46 @@ namespace backend.Migrations
                     b.ToTable("messages", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Models.MessageModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("DateCreated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("date_created")
+                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+
+                    b.Property<int?>("EnterpriseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("enterprise_id");
+
+                    b.Property<string>("Header")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("header");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("message_models", (string)null);
+                });
+
             modelBuilder.Entity("backend.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -658,17 +698,19 @@ namespace backend.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("activation_date");
 
+                    b.Property<string>("Body")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("body");
+
                     b.Property<int?>("ClientsQtt")
                         .HasColumnType("integer")
                         .HasColumnName("clients_qtt");
 
                     b.Property<DateTime>("DateCreated")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_created");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
+                        .HasColumnName("date_created")
+                        .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
 
                     b.Property<DateTime?>("EndShotDate")
                         .HasColumnType("timestamp with time zone")
@@ -677,6 +719,14 @@ namespace backend.Migrations
                     b.Property<int>("EnterpriseId")
                         .HasColumnType("integer")
                         .HasColumnName("enterprise_id");
+
+                    b.Property<string>("Header")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("header");
+
+                    b.Property<int?>("MessageModelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("message_model_id");
 
                     b.Property<string>("ModelName")
                         .HasColumnType("text")
@@ -708,7 +758,9 @@ namespace backend.Migrations
                         .HasColumnName("shot_history");
 
                     b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
+                        .HasDefaultValue(1)
                         .HasColumnName("status");
 
                     b.PrimitiveCollection<List<int>>("Tags")

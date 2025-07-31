@@ -54,9 +54,13 @@ namespace backend.Migrations
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "text", nullable: true),
                     number = table.Column<string>(type: "text", nullable: false),
+                    real_whatsapp_number = table.Column<string>(type: "text", nullable: true),
                     enterprise_id = table.Column<int>(type: "integer", nullable: false),
-                    prompt = table.Column<string>(type: "text", nullable: true)
+                    prompt = table.Column<string>(type: "text", nullable: true),
+                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    date_updated = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -86,15 +90,14 @@ namespace backend.Migrations
                 {
                     id = table.Column<string>(type: "text", nullable: false),
                     status = table.Column<int>(type: "integer", nullable: false),
-                    last_message_text = table.Column<string>(type: "text", nullable: true),
+                    last_messages = table.Column<string>(type: "jsonb", nullable: true),
                     agent_number = table.Column<string>(type: "text", nullable: true),
                     date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW() AT TIME ZONE 'UTC'"),
-                    last_message_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    last_message_is_reply = table.Column<bool>(type: "boolean", nullable: true),
-                    last_message_is_seen = table.Column<bool>(type: "boolean", nullable: true),
                     enterprise_id = table.Column<int>(type: "integer", nullable: false),
                     custom_prompt = table.Column<string>(type: "text", nullable: true),
                     client_name = table.Column<string>(type: "text", nullable: true),
+                    client_email = table.Column<string>(type: "text", nullable: true),
+                    client_cpf_cnpj = table.Column<string>(type: "text", nullable: true),
                     client_name_normalized = table.Column<string>(type: "text", nullable: true),
                     street = table.Column<string>(type: "text", nullable: true),
                     number = table.Column<string>(type: "text", nullable: true),
@@ -156,6 +159,23 @@ namespace backend.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_enterprises", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "message_models",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    enterprise_id = table.Column<int>(type: "integer", nullable: true),
+                    header = table.Column<string>(type: "jsonb", nullable: false),
+                    body = table.Column<string>(type: "jsonb", nullable: false),
+                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW() AT TIME ZONE 'UTC'")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_message_models", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -230,7 +250,8 @@ namespace backend.Migrations
                     payment_id = table.Column<long>(type: "bigint", nullable: true),
                     status = table.Column<int>(type: "integer", nullable: true),
                     tracking_url = table.Column<string>(type: "text", nullable: true),
-                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    date_updated = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -243,14 +264,15 @@ namespace backend.Migrations
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    status = table.Column<int>(type: "integer", nullable: false),
-                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    status = table.Column<int>(type: "integer", nullable: false, defaultValue: 1),
+                    date_created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW() AT TIME ZONE 'UTC'"),
                     activation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     enterprise_id = table.Column<int>(type: "integer", nullable: false),
                     tags = table.Column<List<int>>(type: "integer[]", nullable: true),
+                    model_name = table.Column<string>(type: "text", nullable: true),
+                    message_model_id = table.Column<int>(type: "integer", nullable: true),
                     name = table.Column<string>(type: "text", nullable: false),
                     name_normalized = table.Column<string>(type: "text", nullable: true),
-                    description = table.Column<string>(type: "text", nullable: true),
                     tag_filter_status = table.Column<bool>(type: "boolean", nullable: true),
                     tag_filter = table.Column<string>(type: "jsonb", nullable: true),
                     type_filter_status = table.Column<bool>(type: "boolean", nullable: true),
@@ -261,9 +283,10 @@ namespace backend.Migrations
                     end_shot_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     clients_qtt = table.Column<int>(type: "integer", nullable: true),
                     sent_clients = table.Column<string>(type: "jsonb", nullable: true),
-                    model_name = table.Column<string>(type: "text", nullable: true),
                     shot_fields = table.Column<string>(type: "jsonb", nullable: true),
-                    shot_history = table.Column<string>(type: "jsonb", nullable: true)
+                    shot_history = table.Column<string>(type: "jsonb", nullable: true),
+                    header = table.Column<string>(type: "jsonb", nullable: true),
+                    body = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -337,7 +360,7 @@ namespace backend.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     product_id = table.Column<int>(type: "integer", nullable: false),
                     product_unity_price = table.Column<double>(type: "double precision", nullable: true),
-                    product_qtt = table.Column<int>(type: "integer", nullable: false),
+                    product_qtt = table.Column<double>(type: "double precision", nullable: false),
                     description = table.Column<string>(type: "text", nullable: true),
                     sale_id = table.Column<int>(type: "integer", nullable: true),
                     total_amount = table.Column<double>(type: "double precision", nullable: true),
@@ -383,6 +406,9 @@ namespace backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "enterprises");
+
+            migrationBuilder.DropTable(
+                name: "message_models");
 
             migrationBuilder.DropTable(
                 name: "messages");

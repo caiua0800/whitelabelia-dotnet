@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using backend.Interfaces;
 
 namespace backend.Models;
@@ -27,15 +28,18 @@ public class Shot : IHasEnterpriseId
     [Column("tags")]
     public List<int>? Tags { get; set; }
 
+    [Column("model_name")]
+    public string? ModelName { get; set; }
+
+    [Column("message_model_id")]
+    public int? MessageModelId { get; set; }
+
     [Required]
     [Column("name")]
     public string Name { get; set; }
 
     [Column("name_normalized")]
     public string? NameNormalized { get; set; }
-
-    [Column("description")]
-    public string? Description { get; set; }
 
     [Column("shot_filters")]
     public ShotFilter? ShotFilters { get; set; }
@@ -52,12 +56,35 @@ public class Shot : IHasEnterpriseId
     [Column("sent_clients")]
     public List<ClientShotDto>? SentClients { get; set; }
 
-    [Column("model_name")]
-    public string? ModelName { get; set; }
-
     [Column("shot_fields")]
     public List<ShotFields>? ShotFields { get; set; }
 
     [Column("shot_history")]
     public List<ShotHistory>? ShotHistory { get; set; }
+
+    [Column("header")]
+    public ItemHeaderBody? Header { get; set; }
+
+    [Column("body")]
+    public ItemHeaderBody? Body { get; set; }
+}
+
+
+public class ItemHeaderBody
+{
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+
+    [JsonPropertyName("params")]
+    public List<Param>? Params { get; set; }
+}
+
+public class Param
+{
+
+    [JsonPropertyName("key")]
+    public int? Key { get; set; }
+
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
 }

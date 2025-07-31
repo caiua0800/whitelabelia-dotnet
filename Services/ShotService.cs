@@ -5,31 +5,117 @@ using System.Text.Json;
 using System.Text;
 using System.Globalization;
 namespace backend.Services;
+using Microsoft.Extensions.Configuration;
 
 public class ShotService
 {
     private readonly ApplicationDbContext _context;
     private readonly ITenantService _tenantService;
     private readonly TagService _tagService;
-    private readonly IChatService _chatService;
+    private readonly MessageModelService _messageModelService;
+    private readonly IConfiguration _configuration;
+    public string? severUrl = null;
 
-    public ShotService(ApplicationDbContext context, ITenantService tenantService, TagService tagService, IChatService chatService)
+    public ShotService(ApplicationDbContext context,
+    ITenantService tenantService,
+     TagService tagService,
+     MessageModelService messageModelService, IConfiguration configuration)
     {
         _context = context;
         _tenantService = tenantService;
         _tagService = tagService;
-        _chatService = chatService;
+        _messageModelService = messageModelService;
+        _configuration = configuration;
+        severUrl = _configuration["WhatsappServer:BaseUrl"];
     }
 
     public async Task<IEnumerable<Shot>> GetAllShotsAsync()
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
         return await _context.Shots
             .Where(c => c.EnterpriseId == enterpriseId)
             .ToListAsync();
     }
 
-    public async Task<PaginatedResult<Shot>> SearchShotsAsync(
+    public async Task<IEnumerable<ShotWithMessageModelDto>> GetAllShotsDtoAsync()
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var shots = await _context.Shots
+            .Where(c => c.EnterpriseId == enterpriseId)
+            .ToListAsync();
+
+        var shotsReturned = new List<ShotWithMessageModelDto>();
+        foreach (var shot in shots)
+        {
+            var headerText = ReplacePlaceholdersWithParams(shot.Header);
+            var bodyText = ReplacePlaceholdersWithParams(shot.Body);
+
+            shotsReturned.Add(new ShotWithMessageModelDto
+            {
+                Shot = shot,
+                HeaderText = headerText,
+                BodyText = bodyText,
+            });
+        }
+
+        return shotsReturned;
+    }
+
+    public async Task<ShotWithMessageModelDto?> GetShotDtoByIdAsync(int id)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var shot = await _context.Shots
+            .Where(c => c.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        var headerText = ReplacePlaceholdersWithParams(shot.Header);
+        var bodyText = ReplacePlaceholdersWithParams(shot.Body);
+        var returnedShot = new ShotWithMessageModelDto(shot, headerText, bodyText);
+
+        returnedShot.HeaderText = headerText;
+        returnedShot.BodyText = bodyText;
+
+        return returnedShot;
+    }
+
+    private string ReplacePlaceholdersWithParams(ItemHeaderBody? item)
+    {
+        if (item == null || string.IsNullOrEmpty(item.Text))
+        {
+            return string.Empty;
+        }
+
+        // If no params, return original text
+        if (item.Params == null || !item.Params.Any())
+        {
+            return item.Text;
+        }
+
+        var text = item.Text;
+        var paramsDict = item.Params.ToDictionary(p => p.Key?.ToString() ?? "", p => p.Text ?? "");
+
+        var matches = System.Text.RegularExpressions.Regex.Matches(text, @"\{\{(\d+)\}\}");
+
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            if (match.Groups.Count == 2)
+            {
+                var key = match.Groups[1].Value;
+                if (paramsDict.TryGetValue(key, out var replacement))
+                {
+                    text = text.Replace(match.Value, replacement);
+                }
+            }
+        }
+
+        return text;
+    }
+
+
+    public async Task<PaginatedResult<ShotWithMessageModelDto>> SearchShotsAsync(
     string? searchTerm,
     int pageNumber,
     int pageSize,
@@ -47,8 +133,7 @@ public class ShotService
         {
             var normalizedSearchTerm = RemoveAccents(searchTerm.ToLower());
             query = query.Where(c =>
-                c.NameNormalized.Contains(normalizedSearchTerm) ||
-                c.Description.ToLower().Contains(searchTerm.ToLower()));
+                c.NameNormalized.Contains(normalizedSearchTerm));
         }
 
         if (status.HasValue)
@@ -66,21 +151,34 @@ public class ShotService
             query = query.Where(c => c.DateCreated <= endDateParsed);
         }
 
-        // Ordenação
         query = order.ToLower() == "asc"
             ? query.OrderBy(c => c.DateCreated)
             : query.OrderByDescending(c => c.DateCreated);
 
-        // Paginação
         var totalCount = await query.CountAsync();
         var items = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        return new PaginatedResult<Shot>
+        // Converter os Shots para ShotWithMessageModelDto
+        var dtos = new List<ShotWithMessageModelDto>();
+        foreach (var shot in items)
         {
-            Items = items,
+            var headerText = ReplacePlaceholdersWithParams(shot.Header);
+            var bodyText = ReplacePlaceholdersWithParams(shot.Body);
+
+            dtos.Add(new ShotWithMessageModelDto
+            {
+                Shot = shot,
+                HeaderText = headerText,
+                BodyText = bodyText
+            });
+        }
+
+        return new PaginatedResult<ShotWithMessageModelDto>
+        {
+            Items = dtos,
             TotalCount = totalCount,
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -120,6 +218,11 @@ public class ShotService
 
         shot.ShotFields ??= new List<ShotFields>();
 
+        var messageModel = await _messageModelService.GetMessageModelByIdAsync((int)shot.MessageModelId);
+
+        if (messageModel != null)
+            shot.ModelName = messageModel.Name ?? "";
+
         _context.Shots.Add(shot);
         await _context.SaveChangesAsync();
 
@@ -147,113 +250,93 @@ public class ShotService
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdateShotAsync(int id, string newName, string newDescription, int newStatus)
-    {
-        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
-
-        var shot = await _context.Shots
-            .Where(c => c.Id == id && c.EnterpriseId == enterpriseId)
-            .FirstOrDefaultAsync();
-
-        if (shot == null)
-        {
-            throw new UnauthorizedAccessException("Disparo não pertence ao tenant atual");
-        }
-
-        shot.Status = newStatus;
-        shot.Description = newDescription;
-        shot.Name = newName;
-        shot.NameNormalized = RemoveAccents(newName);
-        _context.Entry(shot).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-    }
 
     public async Task SendShot(int id, string agentNumber, List<ClientShotDto> clients)
     {
-
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
-        var shot = await _context.Shots
-            .Where(c => c.Id == id && c.EnterpriseId == enterpriseId)
-            .FirstOrDefaultAsync();
-
-        if (shot == null)
+        var shotDto = await GetShotDtoByIdAsync(id);
+        if (shotDto == null || shotDto.Shot.EnterpriseId != enterpriseId)
         {
             Console.WriteLine("Disparo não encontrado ou não pertence ao tenant");
             throw new UnauthorizedAccessException("Disparo não pertence ao tenant atual");
         }
 
+        var shot = shotDto.Shot;
         shot.ShotHistory ??= new List<ShotHistory>();
 
-        var chats = await _context.Chats
-            .Where(c => c.EnterpriseId == enterpriseId)
-            .ToListAsync();
-
-        if (chats.Any())
+        try
         {
-
             var clientsCount = clients.Count;
+
+            var headerParams = shot.Header?.Params?
+                .OrderBy(p => p.Key)
+                .Select(p => p.Text)
+                .ToList() ?? new List<string>();
+
+            var bodyParams = shot.Body?.Params?
+                .OrderBy(p => p.Key)
+                .Select(p => p.Text)
+                .ToList() ?? new List<string>();
+
+
 
             var requestData = new
             {
                 recipients = clients,
-                model_name = shot.ModelName,
-                model_language = "pt_BR",
-                text = GetTextFromShotFields(shot.ShotFields),
-                agentNumber
+                agentNumber,
+                templateName = shot.ModelName,
+                language = "pt_BR",
+                headerParams,
+                bodyParams,
+                buttonParams = new List<string>(),
+                saveMessage = true,
+                headerText = shotDto.HeaderText,
+                bodyText = shotDto.BodyText,
             };
 
-            try
+            using (var httpClient = new HttpClient())
             {
-                using (var httpClient = new HttpClient())
-                {
-                    var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-multiple-model", requestData);
-                    response.EnsureSuccessStatusCode();
-                }
-
-                shot.ShotHistory.Add(new ShotHistory
-                {
-                    DateSent = DateTime.UtcNow,
-                    ClientsQtt = clientsCount,
-                    SentClients = clients,
-                    Status = 2 
-                });
-
-                shot.Status = 2;
-                shot.SentClients = clients;
-                shot.ClientsQtt = shot.SentClients?.Count ?? 0;
-                shot.SendShotDate = DateTime.UtcNow;
-
-                Console.WriteLine("Disparo enviado com sucesso");
+                var response = await httpClient.PostAsJsonAsync($"{severUrl}/api/send-template-bulk", requestData);
+                response.EnsureSuccessStatusCode();
             }
-            catch (Exception ex)
-            {
-                shot.ShotHistory.Add(new ShotHistory
-                {
-                    DateSent = DateTime.UtcNow,
-                    Status = 4,
-                    ClientsQtt = 0
-                });
 
-                Console.WriteLine($"Erro ao enviar disparo: {ex.Message}");
-                throw;
-            }
-        }
-        else
-        {
             shot.ShotHistory.Add(new ShotHistory
             {
                 DateSent = DateTime.UtcNow,
-                Status = 3,
+                ClientsQtt = clientsCount,
+                SentClients = clients,
+                Status = 2
+            });
+
+            // Atualiza o status do disparo
+            shot.Status = 2;
+            shot.SentClients = clients;
+            shot.ClientsQtt = clientsCount;
+            shot.SendShotDate = DateTime.UtcNow;
+
+            Console.WriteLine($"Disparo {shot.Id} enviado com sucesso para {clientsCount} clientes");
+
+            _context.Entry(shot).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Registra falha no histórico
+            shot.ShotHistory.Add(new ShotHistory
+            {
+                DateSent = DateTime.UtcNow,
+                Status = 4, // Falha no envio
                 ClientsQtt = 0
             });
 
-            shot.Status = 3;
-            Console.WriteLine("Nenhum chat encontrado para envio");
-        }
+            shot.Status = 4;
+            _context.Entry(shot).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
 
-        _context.Entry(shot).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+            Console.WriteLine($"Erro ao enviar disparo {shot.Id}: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task SendShotStartingLeads(int id, string agentNumber, List<ClientShotDto> clients)
@@ -285,7 +368,7 @@ public class ShotService
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-multiple-model-start-chat-leads", requestData);
+                var response = await httpClient.PostAsJsonAsync($"{severUrl}/send-multiple-model-start-chat-leads", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }
@@ -341,7 +424,7 @@ public class ShotService
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-start-chat", requestData);
+                var response = await httpClient.PostAsJsonAsync($"{severUrl}/send-start-chat", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }
@@ -374,7 +457,7 @@ public class ShotService
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync("https://servidorwhatsapp.demelloagent.app/send-start-chat-leads", requestData);
+                var response = await httpClient.PostAsJsonAsync($"{severUrl}/send-start-chat-leads", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }

@@ -22,8 +22,15 @@ public class ShotController : ControllerBase
         return Ok(chats);
     }
 
+    [HttpGet("dto")]
+    public async Task<ActionResult<IEnumerable<ShotWithMessageModelDto>>> GetAllDto()
+    {
+        var chats = await _shotService.GetAllShotsDtoAsync();
+        return Ok(chats);
+    }
+
     [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<Shot>>> Search(
+    public async Task<ActionResult<IEnumerable<ShotWithMessageModelDto>>> Search(
     [FromQuery] string? searchTerm,
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10,

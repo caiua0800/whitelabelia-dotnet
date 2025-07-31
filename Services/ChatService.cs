@@ -177,7 +177,7 @@ public class ChatService : IChatService
                         .Max() ?? DateTime.MinValue
                 )
         };
-        // Apply pagination
+
         var pagedChats = sortedChats
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
