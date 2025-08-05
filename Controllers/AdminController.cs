@@ -79,6 +79,56 @@ namespace backend.Controllers
             return Ok(new { message = "Senha alterada com sucesso" });
         }
 
+        [HttpPost("create-default-admin")]
+        [Authorize]
+        public async Task<IActionResult> CreateDefaultAdmin()
+        {
+            // 1. Obter a empresa do token
+            var enterprise = HttpContext.Items["CurrentEnterprise"] as Enterprise;
+            if (enterprise == null)
+            {
+                return Unauthorized(new { message = "Empresa não encontrada no contexto." });
+            }
+
+            // 2. Verificar se já existe um admin padrão
+            var existingAdmin = await _context.Admins
+                .FirstOrDefaultAsync(a => a.EnterpriseId == enterprise.Id && a.LoginId == "admin");
+
+            if (existingAdmin != null)
+            {
+                return Conflict(new { message = "Já existe um administrador padrão para esta empresa." });
+            }
+
+            // 3. Criar o admin padrão com permissões
+            var defaultAdmin = new Admin
+            {
+                Name = "Administrador Padrão",
+                LoginId = "admin",
+                Password = BCrypt.Net.BCrypt.HashPassword("admin123"), // Senha padrão
+                EnterpriseId = enterprise.Id,
+                DateCreated = DateTime.UtcNow,
+                Email = $"admin@{enterprise.Name?.ToLower().Replace(" ", "")}.com",
+                Permissions = new List<AdminPermission>
+                {
+                    new AdminPermission { Name = "manage_users", Allowed = true },
+                    new AdminPermission { Name = "manage_settings", Allowed = true },
+                    new AdminPermission { Name = "view_reports", Allowed = true },
+                    new AdminPermission { Name = "full_access", Allowed = true }
+                }
+            };
+
+            _context.Admins.Add(defaultAdmin);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetAdminById), new { id = defaultAdmin.Id }, new
+            {
+                message = "Administrador padrão criado com sucesso",
+                login = defaultAdmin.LoginId,
+                temporaryPassword = "admin123", // Retornar a senha padrão apenas nesta resposta
+                permissions = defaultAdmin.Permissions
+            });
+        }
+
         // Criar novo Admin
         [HttpPost]
         public async Task<IActionResult> CreateAdmin([FromBody] Admin admin)

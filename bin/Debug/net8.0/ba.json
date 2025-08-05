@@ -1,6 +1,6 @@
 {
     "ConnectionStrings": {
-      "DefaultConnection": "Host=database-1.c7q6aw08mco1.us-east-2.rds.amazonaws.com;Port=5432;Database=whitelabelia;Username=postgres;Password=Alanljpa1;SSL Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=30;Pooling=true;" 
+"DefaultConnection": "Host=localhost;Port=5432;Database=whitelabelia;Username=postgres;Password=Caiua@2017"
      },
     "Logging": {
       "LogLevel": {
