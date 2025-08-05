@@ -248,19 +248,17 @@ namespace backend.Models
                         v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
                         v => JsonSerializer.Deserialize<TransactionDetails>(v, (JsonSerializerOptions)null));
             });
-            
+
             modelBuilder.Entity<Subscription>(entity =>
             {
                 entity.ToTable("subscriptions");
 
-                entity.OwnsOne(s => s.Ticket, t =>
-                {
-                    t.Property(x => x.TicketId).HasColumnName("ticket_id");
-                    t.Property(x => x.TicketUrl).HasColumnName("ticket_url");
-                    t.Property(x => x.QrCode).HasColumnName("qr_code");
-                    
-                    t.ToJson();
-                });
+                entity.Property(s => s.Ticket)
+                    .HasColumnName("ticket") // Garante o nome lowercase
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                        v => JsonSerializer.Deserialize<SignaturePix>(v, (JsonSerializerOptions)null));
             });
             modelBuilder.Entity<SubscriptionType>(entity =>
             {
