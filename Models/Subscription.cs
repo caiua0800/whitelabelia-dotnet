@@ -6,7 +6,6 @@ namespace backend.Models;
 [Table("subscriptions")]
 public class Subscription
 {
-
     [Key]
     [Column("id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

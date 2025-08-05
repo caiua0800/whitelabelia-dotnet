@@ -248,6 +248,7 @@ namespace backend.Models
                         v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
                         v => JsonSerializer.Deserialize<TransactionDetails>(v, (JsonSerializerOptions)null));
             });
+            
             modelBuilder.Entity<Subscription>(entity =>
             {
                 entity.ToTable("subscriptions");
@@ -258,11 +259,9 @@ namespace backend.Models
                     t.Property(x => x.TicketUrl).HasColumnName("ticket_url");
                     t.Property(x => x.QrCode).HasColumnName("qr_code");
                     
-                    // Configuração para serializar como JSON se preferir
-                    t.ToJson(); // Descomente esta linha se quiser armazenar como JSON
+                    t.ToJson();
                 });
             });
-
             modelBuilder.Entity<SubscriptionType>(entity =>
             {
                 entity.ToTable("subscription_types");

@@ -6,15 +6,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Models;
 
-[Owned] // Adicione esta anotação para indicar que é um tipo owned
 public class SignaturePix
 {
-    [Column("ticket_id")] // Nome da coluna no banco de dados
+    [JsonPropertyName("ticket_id")]
     public string? TicketId { get; set; }
 
-    [Column("ticket_url")] // Nome da coluna no banco de dados
+    [JsonPropertyName("ticket_url")]
     public string? TicketUrl { get; set; }
 
-    [Column("qr_code")] // Nome da coluna no banco de dados
+    [JsonPropertyName("qr_code")]
     public string? QrCode { get; set; }
 }
