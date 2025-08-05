@@ -35,6 +35,62 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    [HttpPost("signature-pix")]
+    public async Task<IActionResult> CreateSignaturePixPaymentMercadoPago([FromBody] PixPaymentRequest request)
+    {
+        try
+        {
+            var result = await _mercadoPagoService.CreateSignaturePixPayment(request);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao criar pagamento PIX");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("verify/{paymentId}")]
+    public async Task<IActionResult> VerifyPaymentStatus(long paymentId)
+    {
+        try
+        {
+            var result = await _mercadoPagoService.VerifyAndUpdatePaymentStatus(paymentId);
+
+            if (result == null)
+            {
+                return Ok(new { message = "Pagamento ainda não foi aprovado", status = "pending" });
+            }
+
+            return Ok(new
+            {
+                message = "Assinatura atualizada com sucesso",
+                status = "paid",
+                subscription = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Erro ao verificar status do pagamento ID: {paymentId}");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("status/{paymentId}")]
+    public async Task<IActionResult> GetPaymentStatus(long paymentId)
+    {
+        try
+        {
+            var result = await _mercadoPagoService.GetPaymentStatusAsync(paymentId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Erro ao consultar status do pagamento ID: {paymentId}");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("boleto")]
     public async Task<IActionResult> CreateBoletoPaymentMercadoPago([FromBody] BoletoPaymentRequest request)
     {

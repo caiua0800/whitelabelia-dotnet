@@ -62,20 +62,25 @@ namespace backend.Controllers
                 enterprise,
                 subscription_info = new
                 {
-                    expiration = enterprise_subscription?.ExpirationDate,
-                    status = enterprise_subscription?.Status,
-                    block = enterprise_subscription?.Status == 3, 
-                    block_date = enterprise_subscription?.ExpirationDate?.AddDays(3), 
-                    block_days_remaining = enterprise_subscription?.ExpirationDate != null ?
-                    DiasRestantesParaTresDias(enterprise_subscription.ExpirationDate.Value) : (int?)null
+                    shots_avaliable = enterprise_subscription?.Subscription.AvaliableShots,
+                    shots_qtt = enterprise_subscription?.SubscriptionType.ShotsQtt,
+                    name = enterprise_subscription?.SubscriptionType.Name,
+                    duration = enterprise_subscription?.SubscriptionType.Duration,
+                    value = enterprise_subscription?.SubscriptionType.Value,
+                    expiration = enterprise_subscription?.Subscription.ExpirationDate,
+                    date_created = enterprise_subscription?.Subscription.DateCreated,
+                    status = enterprise_subscription?.Subscription.Status,
+                    block = enterprise_subscription?.Subscription.Status == 3,
+                    block_date = enterprise_subscription?.Subscription.ExpirationDate?.AddDays(1),
+                    block_days_remaining = enterprise_subscription?.Subscription.ExpirationDate != null ?
+                    DiasRestantesParaTresDias((DateTime)enterprise_subscription?.Subscription.ExpirationDate?.AddDays(1)) : (int?)null
                 }
             });
         }
 
         public static int DiasRestantesParaTresDias(DateTime dataOriginal)
         {
-            DateTime dataComTresDias = dataOriginal.AddDays(3);
-            TimeSpan diferenca = dataComTresDias - DateTime.Now;
+            TimeSpan diferenca = dataOriginal - DateTime.Now;
             return (int)Math.Ceiling(diferenca.TotalDays);
         }
 

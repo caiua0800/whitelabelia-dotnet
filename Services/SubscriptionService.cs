@@ -68,12 +68,71 @@ public class SubscriptionService
         return subscription;
     }
 
-    public async Task<Subscription?> GetSubscriptionByEnterpriseId(int id)
+    public async Task<int?> GetSubscriptionAvaliableShotsById()
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var subscription = await _context.Subscriptions
+            .Where(a => a.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        return subscription?.AvaliableShots;
+    }
+    
+    public async Task<SubscriptionDto?> GetSubscriptionByEnterpriseId(int id)
     {
         var subscription = await _context.Subscriptions
             .Where(a => a.EnterpriseId == id)
             .FirstOrDefaultAsync();
 
+        if (subscription == null || subscription.SubscriptionTypeId == null)
+        {
+            return null;
+        }
+
+        var subscriptionType = await _subscriptionTypeService.GetSubscriptionTypeById((int)subscription.SubscriptionTypeId);
+
+        if (subscriptionType == null)
+        {
+            return null;
+        }
+
+
+        return new SubscriptionDto(subscription, subscriptionType);
+    }
+
+    public async Task<string?> GetSubscriptionTicketId()
+    {
+        var id = _tenantService.GetCurrentEnterpriseId();
+
+        var subscription = await _context.Subscriptions
+            .Where(a => a.EnterpriseId == id)
+            .FirstOrDefaultAsync();
+
+        if (subscription == null || subscription.SubscriptionTypeId == null || subscription.Ticket == null || subscription.Ticket.TicketId == null)
+        {
+            return null;
+        }
+
+
+        return subscription.Ticket.TicketId;
+    }
+
+    public async Task<Subscription> UpdateSubscriptionTicketAsync(int subscriptionId, SignaturePix ticket)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var subscription = await _context.Subscriptions
+            .Where(s => s.Id == subscriptionId && s.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (subscription == null)
+        {
+            throw new KeyNotFoundException("Subscription not found");
+        }
+        subscription.Ticket = ticket;
+        _context.Entry(subscription).Property(x => x.Ticket).IsModified = true;
+        await _context.SaveChangesAsync();
         return subscription;
     }
 
@@ -97,6 +156,105 @@ public class SubscriptionService
 
         _context.Subscriptions.Add(subscription);
         await _context.SaveChangesAsync();
+        return subscription;
+    }
+
+    public async Task<Subscription> UpdateSubscriptionResources(int subscriptionId)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var subscription = await _context.Subscriptions
+            .Where(s => s.Id == subscriptionId && s.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (subscription == null)
+        {
+            throw new KeyNotFoundException("Subscription not found");
+        }
+
+        if (subscription.SubscriptionTypeId == null)
+        {
+            throw new InvalidOperationException("Subscription type not defined");
+        }
+
+        var subscriptionType = await _subscriptionTypeService
+            .GetSubscriptionTypeById((int)subscription.SubscriptionTypeId);
+
+        if (subscriptionType == null)
+        {
+            throw new KeyNotFoundException("Subscription type not found");
+        }
+
+        subscription.AvaliableShots = subscriptionType.ShotsQtt;
+        subscription.AvaliableStartChats = subscriptionType.StartChatsQtt;
+
+        _context.Subscriptions.Update(subscription);
+        await _context.SaveChangesAsync();
+
+        return subscription;
+    }
+
+    public async Task<bool> DecreaseAvailableShots(int enterpriseId, int shotsToDecrease)
+    {
+        var subscription = await _context.Subscriptions
+            .Where(s => s.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (subscription == null)
+        {
+            return false;
+        }
+
+        if (subscription.AvaliableShots == null || subscription.AvaliableShots < shotsToDecrease)
+        {
+            return false;
+        }
+
+        subscription.AvaliableShots -= shotsToDecrease;
+        _context.Entry(subscription).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<Subscription> RenewSubscriptionResources(int subscriptionId)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var subscription = await _context.Subscriptions
+            .Where(s => s.Id == subscriptionId && s.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (subscription == null)
+        {
+            throw new KeyNotFoundException("Subscription not found");
+        }
+
+        if (subscription.SubscriptionTypeId == null)
+        {
+            throw new InvalidOperationException("Subscription type not defined");
+        }
+
+        var subscriptionType = await _subscriptionTypeService
+            .GetSubscriptionTypeById((int)subscription.SubscriptionTypeId);
+
+        if (subscriptionType == null)
+        {
+            throw new KeyNotFoundException("Subscription type not found");
+        }
+
+        subscription.AvaliableShots = subscriptionType.ShotsQtt;
+        subscription.AvaliableStartChats = subscriptionType.StartChatsQtt;
+
+        subscription.ExpirationDate = subscriptionType.Duration.HasValue
+            ? subscription.ExpirationDate?.AddDays(subscriptionType.Duration.Value)
+            : subscription.ExpirationDate?.AddDays(30);
+
+        subscription.Status = 2; // Pago/Ativo
+        subscription.DatePaid = DateTime.Now;
+
+        _context.Subscriptions.Update(subscription);
+        await _context.SaveChangesAsync();
+
         return subscription;
     }
 

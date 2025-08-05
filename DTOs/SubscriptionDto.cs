@@ -20,4 +20,10 @@ public class SubscriptionDto
         SubscriptionType = subscriptionType;
         Enterprise = enterprise;
     }
+
+    public SubscriptionDto(Subscription subscription, SubscriptionType subscriptionType)
+    {
+        Subscription = subscription;
+        SubscriptionType = subscriptionType;
+    }
 }

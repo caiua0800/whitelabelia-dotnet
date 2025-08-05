@@ -2,11 +2,11 @@ namespace backend.DTOs;
 
 public class PixPaymentRequest
 {
-    public double Transaction_amount { get; set; }
-    public string Description { get; set; }
-    public string Email { get; set; }
-    public string IdentificationType { get; set; }
-    public string Number { get; set; }
+    public double? Transaction_amount { get; set; }
+    public string? Description { get; set; }
+    public string? Email { get; set; }
+    public string? IdentificationType { get; set; }
+    public string? Number { get; set; }
 
     public PixPaymentRequest() { }
 

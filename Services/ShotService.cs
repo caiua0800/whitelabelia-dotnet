@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text;
 using System.Globalization;
 namespace backend.Services;
+
+using backend.DTOs;
 using Microsoft.Extensions.Configuration;
 
 public class ShotService
@@ -13,13 +15,15 @@ public class ShotService
     private readonly ITenantService _tenantService;
     private readonly TagService _tagService;
     private readonly MessageModelService _messageModelService;
+    private readonly SubscriptionService _subscriptionService;
     private readonly IConfiguration _configuration;
+
     public string? severUrl = null;
 
     public ShotService(ApplicationDbContext context,
     ITenantService tenantService,
      TagService tagService,
-     MessageModelService messageModelService, IConfiguration configuration)
+     MessageModelService messageModelService, IConfiguration configuration, SubscriptionService subscriptionService)
     {
         _context = context;
         _tenantService = tenantService;
@@ -27,6 +31,7 @@ public class ShotService
         _messageModelService = messageModelService;
         _configuration = configuration;
         severUrl = _configuration["WhatsappServer:BaseUrl"];
+        _subscriptionService = subscriptionService;
     }
 
     public async Task<IEnumerable<Shot>> GetAllShotsAsync()
@@ -81,6 +86,63 @@ public class ShotService
         return returnedShot;
     }
 
+    public async Task<ShotMonthlyStatsDto> GetMonthlyStatsAsync(int month, int year)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        // 1. Dados do mês específico
+        var shotsInMonth = await _context.Shots
+            .Where(s => s.EnterpriseId == enterpriseId &&
+                       s.SendShotDate.HasValue &&
+                       s.SendShotDate.Value.Month == month &&
+                       s.SendShotDate.Value.Year == year)
+            .ToListAsync();
+
+        var monthHistories = shotsInMonth
+            .Where(s => s.ShotHistory != null)
+            .SelectMany(s => s.ShotHistory)
+            .ToList();
+
+        int totalShots = monthHistories.Sum(h => h.ClientsQtt);
+
+        var uniqueClients = monthHistories
+            .Where(h => h.SentClients != null)
+            .SelectMany(h => h.SentClients)
+            .GroupBy(c => c.Number)
+            .Count();
+
+        // 2. Dados de todos os tempos
+        var allShots = await _context.Shots
+            .Where(s => s.EnterpriseId == enterpriseId && s.SendShotDate.HasValue)
+            .ToListAsync();
+
+        var allHistories = allShots
+            .Where(s => s.ShotHistory != null)
+            .SelectMany(s => s.ShotHistory)
+            .ToList();
+
+        int totalShotsAllTime = allHistories.Sum(h => h.ClientsQtt);
+
+        var uniqueClientsAllTime = allHistories
+            .Where(h => h.SentClients != null)
+            .SelectMany(h => h.SentClients)
+            .GroupBy(c => c.Number)
+            .Count();
+
+        var avaliable_shots = await _subscriptionService.GetSubscriptionAvaliableShotsById();
+
+        return new ShotMonthlyStatsDto
+        {
+            Month = month,
+            Year = year,
+            TotalShots = totalShots,
+            UniqueClientsReached = uniqueClients,
+            TotalShotsAllTime = totalShotsAllTime,
+            UniqueClientsAllTime = uniqueClientsAllTime,
+            AvaliableShots = avaliable_shots
+        };
+    }
+
     private string ReplacePlaceholdersWithParams(ItemHeaderBody? item)
     {
         if (item == null || string.IsNullOrEmpty(item.Text))
@@ -88,7 +150,6 @@ public class ShotService
             return string.Empty;
         }
 
-        // If no params, return original text
         if (item.Params == null || !item.Params.Any())
         {
             return item.Text;
@@ -279,8 +340,6 @@ public class ShotService
                 .Select(p => p.Text)
                 .ToList() ?? new List<string>();
 
-
-
             var requestData = new
             {
                 recipients = clients,
@@ -301,6 +360,13 @@ public class ShotService
                 response.EnsureSuccessStatusCode();
             }
 
+            var shotsDecreased = await _subscriptionService.DecreaseAvailableShots(enterpriseId, clientsCount);
+
+            if (!shotsDecreased)
+            {
+                throw new Exception("Não há shots disponíveis suficientes para realizar o disparo");
+            }
+
             shot.ShotHistory.Add(new ShotHistory
             {
                 DateSent = DateTime.UtcNow,
@@ -309,7 +375,6 @@ public class ShotService
                 Status = 2
             });
 
-            // Atualiza o status do disparo
             shot.Status = 2;
             shot.SentClients = clients;
             shot.ClientsQtt = clientsCount;
@@ -322,7 +387,6 @@ public class ShotService
         }
         catch (Exception ex)
         {
-            // Registra falha no histórico
             shot.ShotHistory.Add(new ShotHistory
             {
                 DateSent = DateTime.UtcNow,
@@ -338,7 +402,7 @@ public class ShotService
             throw;
         }
     }
-
+    
     public async Task SendShotStartingLeads(int id, string agentNumber, List<ClientShotDto> clients)
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();

@@ -38,7 +38,6 @@ public class Enterprise
     [Column("subscription_id")]
     public int? SubscriptionId { get; set; }
 
-    [Required]
     [Column("domain")]
     public string? Domain { get; set; }
 

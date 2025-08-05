@@ -38,6 +38,14 @@ public class SubscriptionController : ControllerBase
         return Ok(product);
     }
 
+    [HttpGet("ticket")]
+    public async Task<ActionResult<string>> GetTicketById(int id)
+    {
+        var product = await _subscriptionService.GetSubscriptionTicketId();
+        if (product == null) return NotFound();
+        return Ok(product);
+    }
+
     [HttpPost]
     public async Task<ActionResult<Subscription>> Create([FromBody] Subscription subscription)
     {

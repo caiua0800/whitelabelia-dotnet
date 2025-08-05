@@ -251,6 +251,16 @@ namespace backend.Models
             modelBuilder.Entity<Subscription>(entity =>
             {
                 entity.ToTable("subscriptions");
+
+                entity.OwnsOne(s => s.Ticket, t =>
+                {
+                    t.Property(x => x.TicketId).HasColumnName("ticket_id");
+                    t.Property(x => x.TicketUrl).HasColumnName("ticket_url");
+                    t.Property(x => x.QrCode).HasColumnName("qr_code");
+                    
+                    // Configuração para serializar como JSON se preferir
+                    t.ToJson(); // Descomente esta linha se quiser armazenar como JSON
+                });
             });
 
             modelBuilder.Entity<SubscriptionType>(entity =>

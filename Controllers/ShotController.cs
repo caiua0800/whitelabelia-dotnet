@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using backend.Models;
 using backend.Services;
+using backend.DTOs;
 
 namespace backend.Controllers;
 
@@ -75,6 +76,29 @@ public class ShotController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("monthly-stats")]
+    public async Task<ActionResult<ShotMonthlyStatsDto>> GetMonthlyStats(
+    [FromQuery] int month,
+    [FromQuery] int year,
+    [FromHeader(Name = "Authorization")] string authToken)
+    {
+        try
+        {
+
+            if (string.IsNullOrEmpty(authToken))
+            {
+                return Unauthorized("Token de autenticação é necessário");
+            }
+
+            var stats = await _shotService.GetMonthlyStatsAsync(month, year);
+            return Ok(stats);
         }
         catch (Exception ex)
         {

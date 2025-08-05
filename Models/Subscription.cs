@@ -40,5 +40,6 @@ public class Subscription
     [Column("avaliable_start_chats")]
     public int? AvaliableStartChats { get; set; }
 
-
+    [Column("ticket")]
+    public SignaturePix? Ticket { get; set; }
 }

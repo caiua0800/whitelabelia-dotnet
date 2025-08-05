@@ -27,7 +27,6 @@ public class SubscriptionTypeService
 
     public async Task<SubscriptionType?> GetSubscriptionTypeById(int id)
     {
-        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
         var subscription = await _context.SubscriptionTypes
             .Where(a => a.Id == id)
             .FirstOrDefaultAsync();
