@@ -73,7 +73,7 @@ public class ShotService
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
         var shot = await _context.Shots
-            .Where(c => c.EnterpriseId == enterpriseId)
+            .Where(c => c.EnterpriseId == enterpriseId && c.Id == id)
             .FirstOrDefaultAsync();
 
         var headerText = ReplacePlaceholdersWithParams(shot.Header);
