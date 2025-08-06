@@ -282,7 +282,17 @@ public class ShotService
         var messageModel = await _messageModelService.GetMessageModelByIdAsync((int)shot.MessageModelId);
 
         if (messageModel != null)
+        {
             shot.ModelName = messageModel.Name ?? "";
+
+            if (messageModel.Footer != null)
+            {
+                shot.Footer = new ItemHeaderBody
+                {
+                    Text = messageModel.Footer.Text
+                };
+            }
+        }
 
         _context.Shots.Add(shot);
         await _context.SaveChangesAsync();
@@ -352,6 +362,7 @@ public class ShotService
                 saveMessage = true,
                 headerText = shotDto.HeaderText,
                 bodyText = shotDto.BodyText,
+                footerText = shot.Footer?.Text 
             };
 
             using (var httpClient = new HttpClient())
@@ -402,7 +413,7 @@ public class ShotService
             throw;
         }
     }
-    
+
     public async Task SendShotStartingLeads(int id, string agentNumber, List<ClientShotDto> clients)
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();

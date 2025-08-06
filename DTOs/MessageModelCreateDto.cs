@@ -16,8 +16,18 @@ public class MessageModelCreateDto
     [JsonPropertyName("bodyText")]
     public string? BodyText { get; set; }
 
+    [JsonPropertyName("enterprise_id")]
+    public int? EnterpriseId { get; set; }
+
+    [JsonPropertyName("footerText")]
+    public string? FooterText { get; set; }
+
+    [JsonPropertyName("account_id")]
+    public string? AccountId { get; set; } 
+
     [JsonPropertyName("bodyParams")]
     public List<BodyTextParamsDto>? BodyParams { get; set; }
+    
 }
 
 public class BodyTextParamsDto

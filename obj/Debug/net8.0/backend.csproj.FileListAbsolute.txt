@@ -315,3 +315,9 @@
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Newtonsoft.Json.dll
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/BouncyCastle.Crypto.dll
 /Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/ba.json
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Configuration.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Configuration.Binder.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Diagnostics.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Diagnostics.Abstractions.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Http.dll
+/Users/caiuamello/Desktop/PROJETOS/WHITELABEL IA/files/backend/bin/Debug/net8.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll

@@ -43,7 +43,7 @@ public class MessageModelController : ControllerBase
         {
             var createdModel = await _messageModelService.CreateMessageModelAsync(createDto);
             return CreatedAtAction(
-                nameof(GetMessageModelById),  // Changed from GetMessageModelByIdAsync to match the actual action name
+                nameof(GetMessageModelById), 
                 new { id = createdModel.Id },
                 createdModel);
         }

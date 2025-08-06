@@ -193,6 +193,43 @@ namespace backend.Models
                                 }))
                     );
 
+                entity.Property(m => m.Footer)
+                    .HasColumnName("footer")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                        {
+                            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                        }),
+                        v => JsonSerializer.Deserialize<FooterMessageModel>(v, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        }),
+                        new ValueComparer<FooterMessageModel>(
+                            (c1, c2) => JsonSerializer.Serialize(c1, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }) == JsonSerializer.Serialize(c2, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }),
+                            c => JsonSerializer.Serialize(c, new JsonSerializerOptions
+                            {
+                                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                            }).GetHashCode(),
+                            c => JsonSerializer.Deserialize<FooterMessageModel>(
+                                JsonSerializer.Serialize(c, new JsonSerializerOptions
+                                {
+                                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                                }),
+                                new JsonSerializerOptions
+                                {
+                                    PropertyNameCaseInsensitive = true
+                                }))
+                    );
+
+
                 entity.Property(m => m.DateCreated)
                     .HasColumnName("date_created")
                     .HasColumnType("timestamp with time zone")
@@ -493,6 +530,19 @@ namespace backend.Models
                         {
                             PropertyNameCaseInsensitive = true
                         }));
+
+                entity.Property(s => s.Footer)
+                    .HasColumnName("footer")
+                    .HasColumnType("jsonb")
+                    .HasConversion(
+                    v => JsonSerializer.Serialize(v, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    }),
+                    v => JsonSerializer.Deserialize<ItemHeaderBody>(v, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    }));
 
                 // Owned entity for ShotFilters
                 entity.OwnsOne(s => s.ShotFilters, sf =>

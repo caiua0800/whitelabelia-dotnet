@@ -25,6 +25,12 @@ public class MessageModel
     [Column("body")]
     public BodyMessageModel Body { get; set; }
 
+    [Column("footer")]
+    public FooterMessageModel? Footer { get; set; }
+
+    [Column("meta_template_id")]
+    public string? MetaTemplateId { get; set; }
+
     [Column("date_created")]
     public DateTime DateCreated { get; set; }
 }
@@ -49,6 +55,15 @@ public class BodyMessageModel
     public List<BodyTextParams>? Params { get; set; }
 }
 
+public class FooterMessageModel
+{
+    [JsonPropertyName("key")]
+    public int? Key { get; set; }
+
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+}
+
 public class BodyTextParams
 {
 
@@ -58,3 +73,4 @@ public class BodyTextParams
     [JsonPropertyName("param")]
     public string? Param { get; set; }
 }
+

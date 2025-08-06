@@ -67,6 +67,9 @@ public class Shot : IHasEnterpriseId
 
     [Column("body")]
     public ItemHeaderBody? Body { get; set; }
+
+    [Column("footer")]
+    public ItemHeaderBody? Footer { get; set; }
 }
 
 
