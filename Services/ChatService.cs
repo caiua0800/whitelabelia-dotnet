@@ -246,6 +246,33 @@ public class ChatService : IChatService
         return tagNames;
     }
 
+    public async Task UpdateLastMessageAsync(string chatId, string messageText, string agentNumber, bool isReply)
+    {
+        var chat = await _context.Chats
+            .Where(c => c.Id == chatId)
+            .FirstOrDefaultAsync();
+
+        if (chat == null)
+        {
+            throw new ArgumentException("Chat não encontrado");
+        }
+
+        chat.LastMessages ??= new List<LastMessageDto>();
+
+        chat.LastMessages.RemoveAll(m => m.AgentNumber == agentNumber);
+
+        chat.LastMessages.Add(new LastMessageDto
+        {
+            AgentNumber = agentNumber,
+            Text = messageText,
+            IsSeen = false, // Por padrão, mensagem não vista
+            IsReply = isReply,
+            DateCreated = DateTime.UtcNow
+        });
+
+        _context.Entry(chat).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+    }
 
     private static string RemoveAccents(string text)
     {

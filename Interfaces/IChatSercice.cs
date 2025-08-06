@@ -1,4 +1,5 @@
 using backend.Models;
+using SixLabors.ImageSharp;
 
 public interface IChatService
 {
@@ -9,6 +10,7 @@ public interface IChatService
     Task UpdateCustomPrompt(string id, string prompt);
     Task<List<ChatDto>> GetAllChatsWithLastMessageAsync(string agentNumber);
     Task<bool?> GetLastMessageIsSeenAsync(string id, string agentNumber);
+    Task UpdateLastMessageAsync(string number, string text1, string agentNumber, bool boolzin);
     Task<Chat?> GetChatByIdAsync(string id);
     Task<List<string>?> GetChatByIdAsync(List<int> tagIds);
     Task<Chat> CreateChatAsync(Chat chat);

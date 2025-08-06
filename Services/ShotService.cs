@@ -16,6 +16,7 @@ public class ShotService
     private readonly ITenantService _tenantService;
     private readonly TagService _tagService;
     private readonly MessageModelService _messageModelService;
+    private readonly IChatService _chatService;
     private readonly SubscriptionService _subscriptionService;
     private readonly IConfiguration _configuration;
 
@@ -24,7 +25,7 @@ public class ShotService
     public ShotService(ApplicationDbContext context,
     ITenantService tenantService,
      TagService tagService,
-     MessageModelService messageModelService, IConfiguration configuration, SubscriptionService subscriptionService)
+     MessageModelService messageModelService, IConfiguration configuration, SubscriptionService subscriptionService, IChatService chatService)
     {
         _context = context;
         _tenantService = tenantService;
@@ -33,6 +34,7 @@ public class ShotService
         _configuration = configuration;
         severUrl = _configuration["WhatsappServer:BaseUrl"];
         _subscriptionService = subscriptionService;
+        _chatService = chatService;
     }
 
     public async Task<IEnumerable<Shot>> GetAllShotsAsync()
@@ -418,6 +420,11 @@ public class ShotService
                 bodyText = shotDto.BodyText,
                 footerText = shot.Footer?.Text
             };
+
+            foreach (var client in clients)
+            {
+                await _chatService.UpdateLastMessageAsync(client.Number, shotDto.HeaderText, agentNumber, true);
+            }
 
             using (var httpClient = new HttpClient())
             {
