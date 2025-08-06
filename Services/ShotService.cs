@@ -7,6 +7,7 @@ using System.Globalization;
 namespace backend.Services;
 
 using backend.DTOs;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 
 public class ShotService
@@ -303,6 +304,59 @@ public class ShotService
         return shot;
     }
 
+    public async Task CheckAndUpdateTemplateStatus(int shotId)
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+        var shot = await _context.Shots
+            .Where(c => c.Id == shotId && c.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        if (shot == null)
+        {
+            throw new UnauthorizedAccessException("Disparo não pertence ao tenant atual");
+        }
+
+        var messageModel = await _messageModelService.GetMessageModelByIdAsync((int)shot.MessageModelId);
+
+        if (messageModel == null)
+        {
+            throw new Exception("Modelo de mensagem não encontrado.");
+        }
+
+        try
+        {
+            // Obter o access token do WhatsApp da configuração
+            var accessToken = _configuration["WhatsappUserTokenApi"];
+
+            using (var httpClient = new HttpClient())
+            {
+                // Fazer requisição para a API do Facebook para verificar o template
+                var response = await httpClient.GetAsync(
+                    $"https://graph.facebook.com/v22.0/{messageModel.MetaTemplateId}?fields=status&access_token={accessToken}");
+
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var templateInfo = JsonSerializer.Deserialize<TemplateStatusResponse>(responseContent);
+
+                if (templateInfo?.Status == "APPROVED" && shot.Status != 2)
+                {
+                    // Atualizar o status do shot para 2 (aprovado)
+                    shot.Status = 2;
+                    _context.Entry(shot).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+
+                    Console.WriteLine($"Status do template {messageModel.MetaTemplateId} aprovado. Shot {shotId} atualizado para status 2.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao verificar status do template {messageModel.MetaTemplateId}: {ex.Message}");
+            throw;
+        }
+    }
+
     public async Task UpdateShotStatusAsync(int id, int newStatus)
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
@@ -362,7 +416,7 @@ public class ShotService
                 saveMessage = true,
                 headerText = shotDto.HeaderText,
                 bodyText = shotDto.BodyText,
-                footerText = shot.Footer?.Text 
+                footerText = shot.Footer?.Text
             };
 
             using (var httpClient = new HttpClient())

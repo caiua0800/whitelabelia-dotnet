@@ -65,6 +65,55 @@ public class ShotController : ControllerBase
         }
     }
 
+    [HttpPost("check-template-status/{shotId}")]
+    public async Task<IActionResult> CheckTemplateStatus(int shotId)
+    {
+        try
+        {
+            // Obter o shot pelo ID
+            var shot = await _shotService.GetShotByIdAsync(shotId);
+            if (shot == null)
+            {
+                return NotFound(new { success = false, message = "Disparo não encontrado" });
+            }
+
+            if (shot.MessageModelId == null)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Este disparo não possui um modelo de mensagem associado"
+                });
+            }
+
+
+            await _shotService.CheckAndUpdateTemplateStatus(shotId);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Status do template verificado com sucesso"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Erro ao verificar status do template",
+                details = ex.Message
+            });
+        }
+    }
+
     [HttpPost("send/{id}")]
     public async Task<IActionResult> SendShot(int id, [FromBody] List<ClientShotDto> clients, [FromQuery] string agentNumber)
     {
