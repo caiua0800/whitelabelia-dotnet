@@ -8,6 +8,7 @@ public interface IAgentService
     Task<List<Agent>?> GetAgentsByEnterpriseId();
     Task<Agent?> GetAgent(int enterprise_id);
     Task<string?> GetPrompt(string? agentNumber);
+    Task<string?> GetFirstAgentNumber();
     Task<bool> UpdatePrompt(string newPrompt, string agentNumber);
     Task<string?> GetPrompt1(string agentNumber);
     

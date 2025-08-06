@@ -156,6 +156,11 @@ public class ChatService : IChatService
 
         var chatsList = await query.ToListAsync();
 
+        if(agentNumber == null || agentNumber.Trim() == "")
+        {
+            agentNumber = await _agentService.GetFirstAgentNumber();
+        }
+
         var sortedChats = order?.ToLower() switch
         {
             "asc" => chatsList

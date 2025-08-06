@@ -78,6 +78,18 @@ public class AgentService : IAgentService
         return agent?.Prompt;
     }
 
+
+    public async Task<string?> GetFirstAgentNumber()
+    {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
+        var agent = await _context.Agents
+            .Where(a => a.EnterpriseId == enterpriseId)
+            .FirstOrDefaultAsync();
+
+        return agent?.Number;
+    }
+
     public async Task<bool> UpdatePrompt(string newPrompt, string agentNumber)
 {
     var agent = await _context.Agents
