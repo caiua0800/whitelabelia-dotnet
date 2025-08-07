@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using backend.DTOs;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 
 namespace backend.Services;
 
@@ -18,10 +19,10 @@ public class MessageModelService
     private readonly string _accountId;
 
     public MessageModelService(
-    ApplicationDbContext context,
-    ITenantService tenantService,
-    IHttpClientFactory httpClientFactory,
-    IConfiguration configuration)
+        ApplicationDbContext context,
+        ITenantService tenantService,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _context = context;
         _tenantService = tenantService;
@@ -55,6 +56,12 @@ public class MessageModelService
 
         if (string.IsNullOrWhiteSpace(createDto.BodyText))
             throw new ArgumentException("Texto do corpo é obrigatório");
+
+        // Validação do cabeçalho
+        if (ContainsInvalidCharacters(createDto.HeaderText))
+        {
+            throw new ArgumentException("O cabeçalho não pode conter quebras de linha, emojis ou caracteres especiais");
+        }
 
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
@@ -136,17 +143,6 @@ public class MessageModelService
             });
         }
 
-        // Adicionar footer apenas se houver parâmetros
-        if (messageModel.Body.Params?.Any() == true)
-        {
-            components.Add(new
-            {
-                type = "FOOTER",
-                text = "Texto do rodapé se necessário" // Ou use createDto.FooterText se disponível
-            });
-        }
-
-        // Corpo da requisição ajustado conforme exemplo que funciona
         var requestBody = new
         {
             name = messageModel.Name.ToLower().Replace(" ", "_"),
@@ -157,7 +153,6 @@ public class MessageModelService
 
         try
         {
-            // Serializar manualmente para debug
             var jsonBody = JsonSerializer.Serialize(requestBody);
             Console.WriteLine($"Enviando para WhatsApp API: {jsonBody}");
 
@@ -167,19 +162,50 @@ public class MessageModelService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Erro detalhado: {errorContent}");
-                throw new Exception($"Falha ao criar template: {errorContent}");
+
+                // Parse do erro específico do WhatsApp
+                var whatsappError = JsonSerializer.Deserialize<WhatsAppErrorResponse>(errorContent);
+                var errorMessage = "Falha ao criar template no WhatsApp";
+
+                if (whatsappError?.Error != null)
+                {
+                    errorMessage = whatsappError.Error.ErrorUserMsg ?? whatsappError.Error.Message;
+                }
+
+                throw new Exception(errorMessage);
             }
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Resposta completa: {responseContent}");
-
             var responseData = JsonSerializer.Deserialize<WhatsAppTemplateResponseDto>(responseContent);
             messageModel.MetaTemplateId = responseData.Id;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erro completo: {ex.ToString()}");
-            throw new Exception("Falha ao criar template no WhatsApp. Verifique os logs para detalhes.");
+            Console.WriteLine($"Erro completo: {ex}");
+            throw;
         }
+    }
+
+    private bool ContainsInvalidCharacters(string text)
+    {
+        // Verifica por quebras de linha, emojis, asteriscos, etc.
+        return text.Contains('\n') ||
+               text.Contains('*') ||
+               Regex.IsMatch(text, @"\p{Cs}") || // Emojis
+               text.Any(c => char.IsSurrogate(c));
+    }
+
+    private class WhatsAppErrorResponse
+    {
+        public WhatsAppError Error { get; set; }
+    }
+
+    private class WhatsAppError
+    {
+        public string Message { get; set; }
+        public string Type { get; set; }
+        public int Code { get; set; }
+        public string ErrorUserMsg { get; set; }
+        public string ErrorUserTitle { get; set; }
     }
 }

@@ -47,9 +47,20 @@ public class MessageModelController : ControllerBase
                 new { id = createdModel.Id },
                 createdModel);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { 
+                error = ex.Message,
+                type = "validation"
+            });
+        }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = ex.Message });
+            return StatusCode(500, new { 
+                error = ex.Message,
+                details = ex.InnerException?.Message,
+                type = "api_error"
+            });
         }
     }
 }
