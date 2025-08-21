@@ -25,6 +25,9 @@ public class MessageModelCreateDto
     [JsonPropertyName("account_id")]
     public string? AccountId { get; set; } 
 
+    [JsonPropertyName("whatsapp_token")]
+    public string? WhatsappToken { get; set; } 
+
     [JsonPropertyName("bodyParams")]
     public List<BodyTextParamsDto>? BodyParams { get; set; }
     

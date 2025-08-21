@@ -19,13 +19,14 @@ public class ShotService
     private readonly IChatService _chatService;
     private readonly SubscriptionService _subscriptionService;
     private readonly IConfiguration _configuration;
+    private readonly EnterpriseService _enterpriseService;
 
     public string? severUrl = null;
 
     public ShotService(ApplicationDbContext context,
     ITenantService tenantService,
      TagService tagService,
-     MessageModelService messageModelService, IConfiguration configuration, SubscriptionService subscriptionService, IChatService chatService)
+     MessageModelService messageModelService, IConfiguration configuration, SubscriptionService subscriptionService, IChatService chatService, EnterpriseService enterpriseService)
     {
         _context = context;
         _tenantService = tenantService;
@@ -35,6 +36,7 @@ public class ShotService
         severUrl = _configuration["WhatsappServer:BaseUrl"];
         _subscriptionService = subscriptionService;
         _chatService = chatService;
+        _enterpriseService = enterpriseService;
     }
 
     public async Task<IEnumerable<Shot>> GetAllShotsAsync()
@@ -382,6 +384,10 @@ public class ShotService
     {
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
+        var enterprise = await _enterpriseService.GetEnterpriseByIdAsync(enterpriseId);
+
+        Console.WriteLine($"enterprise Token {enterprise.WhatsappToken}");
+
         var shotDto = await GetShotDtoByIdAsync(id);
         if (shotDto == null || shotDto.Shot.EnterpriseId != enterpriseId)
         {
@@ -418,7 +424,8 @@ public class ShotService
                 saveMessage = true,
                 headerText = shotDto.HeaderText,
                 bodyText = shotDto.BodyText,
-                footerText = shot.Footer?.Text
+                footerText = shot.Footer?.Text,
+                whatsappToken = enterprise?.WhatsappToken ?? ""
             };
 
             foreach (var client in clients)
@@ -539,28 +546,26 @@ public class ShotService
         await _context.SaveChangesAsync();
     }
 
-    public async Task SendStartChatShot(ClientShotDto client, string textToSend, string myName, string agentNumber)
+    public async Task SendStartChatShot(string to, string textToSend, string messageType, string agentNumber, string whatsappToken)
     {
 
         var enterpriseId = _tenantService.GetCurrentEnterpriseId();
 
         var requestData = new
         {
-            recipient = client,
-            model_name = "start_chat",
-            model_language = "pt_BR",
-            text = textToSend,
-            client_name = myName,
-            agentNumber
+            to = to,
+            message = textToSend,
+            messageType = messageType ?? "text",
+            isFromAdmin = true,
+            whatsappNumId = agentNumber, 
+            whatsappToken
         };
-
-        Console.WriteLine($"agentNumber (SendStartChatShot): {agentNumber}");
 
         try
         {
             using (var httpClient = new HttpClient())
             {
-                var response = await httpClient.PostAsJsonAsync($"{severUrl}/send-start-chat", requestData);
+                var response = await httpClient.PostAsJsonAsync($"{severUrl}/send-whatsapp", requestData);
                 Console.WriteLine($"Resposta do serviço: {response.StatusCode}");
                 response.EnsureSuccessStatusCode();
             }

@@ -174,11 +174,11 @@ public class ShotController : ControllerBase
     }
 
     [HttpPost("start-chat")]
-    public async Task<IActionResult> SendShot([FromBody] ClientShotDtoStart dto, [FromQuery] string agentNumber)
+    public async Task<IActionResult> SendShot([FromBody] ClientShotDtoStart dto, [FromQuery] string agentNumber, [FromQuery] string whatsappToken)
     {
         try
         {
-            await _shotService.SendStartChatShot(dto.ClientShotDto, dto.TextToSend, dto.MyName, agentNumber);
+            await _shotService.SendStartChatShot(dto.To, dto.Message, dto.MessageType, agentNumber, whatsappToken);
             return Ok("Chat iniciado com sucesso.");
         }
         catch (UnauthorizedAccessException ex)

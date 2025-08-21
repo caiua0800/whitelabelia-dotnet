@@ -59,4 +59,10 @@ public class Enterprise
 
     [Column("brand_name")]
     public string? BrandName { get; set; }
+
+    [Column("whatsapp_token")]
+    public string? WhatsappToken { get; set; }
+
+    [Column("meta_account_id")]
+    public string? MetaAccountId { get; set; }
 }

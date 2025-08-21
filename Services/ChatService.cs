@@ -156,7 +156,7 @@ public class ChatService : IChatService
 
         var chatsList = await query.ToListAsync();
 
-        if(agentNumber == null || agentNumber.Trim() == "")
+        if (agentNumber == null || agentNumber.Trim() == "")
         {
             agentNumber = await _agentService.GetFirstAgentNumber();
         }
@@ -525,10 +525,15 @@ public class ChatService : IChatService
         await _context.SaveChangesAsync();
     }
 
+    // Em backend.Services/ChatService.cs
+
     public async Task UpdateChatLastMessageIsSeenAsync(string id, string agentNumber)
     {
+        var enterpriseId = _tenantService.GetCurrentEnterpriseId();
+
         var chat = await _context.Chats
-            .Where(c => c.Id == id)
+            .Include(c => c.LastMessages)
+            .Where(c => c.Id == id && c.EnterpriseId == enterpriseId) // <-- CORREÇÃO AQUI!
             .FirstOrDefaultAsync();
 
         if (chat == null)
@@ -536,9 +541,14 @@ public class ChatService : IChatService
             throw new UnauthorizedAccessException("Chat não encontrado");
         }
 
-        chat.LastMessages.Find(c => c.AgentNumber == agentNumber).IsSeen = true;
-        _context.Entry(chat).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+        var messageToUpdate = chat.LastMessages?.FirstOrDefault(c => c.AgentNumber == agentNumber);
+
+        if (messageToUpdate != null)
+        {
+            messageToUpdate.IsSeen = true;
+            _context.Entry(chat).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<bool?> UpdateChatTagsAsync(string chatId, List<int> newTags)

@@ -15,8 +15,6 @@ public class MessageModelService
     private readonly ITenantService _tenantService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
-    private readonly string _whatsappToken;
-    private readonly string _accountId;
 
     public MessageModelService(
         ApplicationDbContext context,
@@ -28,8 +26,6 @@ public class MessageModelService
         _tenantService = tenantService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
-        _whatsappToken = _configuration["WhatsappUserTokenApi"];
-        _accountId = _configuration["MetaAccountId"];
     }
 
     public async Task<IEnumerable<MessageModel>> GetMessageModels()
@@ -103,7 +99,8 @@ public class MessageModelService
             };
         }
 
-        await CreateWhatsAppTemplate(messageModel);
+        await CreateWhatsAppTemplate(messageModel, createDto.AccountId, createDto.WhatsappToken);
+
 
         _context.MessageModels.Add(messageModel);
         await _context.SaveChangesAsync();
@@ -111,13 +108,13 @@ public class MessageModelService
         return messageModel;
     }
 
-    private async Task CreateWhatsAppTemplate(MessageModel messageModel)
+    private async Task CreateWhatsAppTemplate(MessageModel messageModel, string accountId, string whatsappToken)
     {
         var httpClient = _httpClientFactory.CreateClient();
         httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", _whatsappToken);
+            new AuthenticationHeaderValue("Bearer", whatsappToken);
 
-        var requestUrl = $"https://graph.facebook.com/v18.0/{_accountId}/message_templates";
+        var requestUrl = $"https://graph.facebook.com/v23.0/{accountId}/message_templates";
 
         var components = new List<object>
         {

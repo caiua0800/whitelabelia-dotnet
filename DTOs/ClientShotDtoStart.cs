@@ -7,20 +7,22 @@ namespace backend.Models;
 public class ClientShotDtoStart
 {
 
-    [JsonPropertyName("client_shot_dto")]
-    public ClientShotDto ClientShotDto { get; set; }
+    [JsonPropertyName("to")]
+    public string? To { get; set; }
 
-    [JsonPropertyName("text_to_send")]
-    public string TextToSend { get; set; }
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
 
-    [JsonPropertyName("my_name")]
-    public string MyName { get; set; }
+    [JsonPropertyName("message_type")]
+    public string? MessageType { get; set; } = "text";
 
-    public ClientShotDtoStart(ClientShotDto clientShotDto, string textToSend, string myName)
-    {
-        ClientShotDto = clientShotDto;
-        TextToSend = textToSend;
-        MyName = myName;
-    }
+    [JsonPropertyName("is_from_admin")]
+    public bool? IsFromAdmin { get; set; } = true;
+
+    // [JsonPropertyName("agent_number")]
+    // public string? AgentNumber { get; set; }
+
+    // [JsonPropertyName("whatsapp_token")]
+    // public string? WhatsappToken { get; set; }
 
 }

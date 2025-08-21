@@ -294,11 +294,11 @@ public class ChatController : ControllerBase
         }
         catch (UnauthorizedAccessException)
         {
-            return Forbid();
+            return Forbid(); // Retorna 403
         }
         catch (Exception)
         {
-            return NotFound();
+            return NotFound(); // <-- BINGO! Retorna o 404 que você está vendo.
         }
     }
 

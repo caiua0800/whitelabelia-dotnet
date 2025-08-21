@@ -17,16 +17,19 @@ public class EnterpriseController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ITenantService _tenantService;
+    private readonly EnterpriseService _enterpriseService;
     private readonly ICredentialGeneratorService _credentialGenerator;
 
     public EnterpriseController(
         ApplicationDbContext context,
         ITenantService tenantService,
-        ICredentialGeneratorService credentialGenerator)
+        ICredentialGeneratorService credentialGenerator,
+        EnterpriseService enterpriseService)
     {
         _context = context;
         _tenantService = tenantService;
         _credentialGenerator = credentialGenerator;
+        _enterpriseService = enterpriseService;
     }
 
     [HttpGet]
@@ -57,6 +60,19 @@ public class EnterpriseController : ControllerBase
     public async Task<ActionResult<Enterprise>> GetEnterprise(int id)
     {
         var enterprise = await _context.Enterprises.FindAsync(id);
+
+        if (enterprise == null)
+        {
+            return NotFound();
+        }
+
+        return enterprise;
+    }
+
+    [HttpGet("agentNumber/{number}")]
+    public async Task<ActionResult<Enterprise>> GetEnterpriseByAgentNumber(string number)
+    {
+        var enterprise = await _enterpriseService.GetEnterpriseByAgentNumberAsync(number);
 
         if (enterprise == null)
         {
